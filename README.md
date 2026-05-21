@@ -19,7 +19,7 @@
 5. Branch 选择 `main`，目录选择 `/root`。
 6. 保存后等待 GitHub Pages 生成访问地址。
 
-## 埋点预留
+## 统计与埋点
 
 统一埋点入口在 `analytics.js`：
 
@@ -28,9 +28,9 @@ trackEvent("tool_opened", { tool: "crop" });
 trackEvent("download_clicked", { tool: "workspace", format: "image/jpeg" });
 ```
 
-当前默认配置为 `enabled: false`，只在控制台输出调试日志，不发送到后端。
+当前已接入百度统计，站点 ID 在 `analytics.js` 的 `baiduId` 中配置。页面访问会由百度统计脚本记录，工具打开、上传、裁剪、滤镜、标题添加、下载、压缩跳转等行为会通过统一的 `trackEvent()` 同步到百度统计事件。
 
-后续接入百度统计、友盟或自建 `/api/track` 时，只需要在 `analytics.js` 中开启并配置：
+后续如果要增加自建后端统计，可以继续复用同一个入口，只需要配置 `endpoint`：
 
 ```js
 configureTracking({

@@ -1,10 +1,23 @@
 (function () {
   const config = {
-    enabled: false,
-    debug: true,
+    enabled: true,
+    debug: false,
     endpoint: "",
-    app: "image-toolbox"
+    app: "image-toolbox",
+    baiduId: "fdcabcd2bd41f07244795afe47e8d495"
   };
+
+  function loadBaiduAnalytics() {
+    if (!config.baiduId || window.__baiduAnalyticsLoaded) return;
+    window.__baiduAnalyticsLoaded = true;
+    window._hmt = window._hmt || [];
+
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = `https://hm.baidu.com/hm.js?${config.baiduId}`;
+    const firstScript = document.getElementsByTagName("script")[0];
+    firstScript.parentNode.insertBefore(script, firstScript);
+  }
 
   function getPageName() {
     const path = location.pathname.split("/").pop() || "index.html";
@@ -18,7 +31,7 @@
   }
 
   function sendToVendors(eventName, payload) {
-    if (window._hmt) window._hmt.push(["_trackEvent", payload.tool || payload.page, eventName]);
+    if (window._hmt) window._hmt.push(["_trackEvent", payload.tool || payload.page, eventName, payload.action || ""]);
     if (window._czc) window._czc.push(["_trackEvent", payload.tool || payload.page, eventName]);
   }
 
@@ -39,7 +52,10 @@
 
   window.configureTracking = function configureTracking(options = {}) {
     Object.assign(config, options);
+    loadBaiduAnalytics();
   };
+
+  loadBaiduAnalytics();
 
   window.addEventListener("DOMContentLoaded", () => {
     window.trackEvent("page_view");
