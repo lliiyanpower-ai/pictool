@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>工作台 - 图片工具箱</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="workspace-body">
+    <main class="workspace-app" aria-label="图片工作台">
+      <header class="workspace-topbar">
+        <a class="workspace-back" href="index.html">返回</a>
+        <div class="workspace-file">
+          <strong id="workspaceFileName">未选择图片</strong>
+          <span id="workspaceFileMeta">本地处理，不上传图片</span>
+        </div>
+        <div class="workspace-history" aria-label="编辑历史">
+          <button id="undoButton" type="button" disabled>上一步</button>
+          <button id="redoButton" type="button" disabled>下一步</button>
+        </div>
+        <div class="workspace-zoom" aria-label="画布缩放">
+          <button id="zoomOutButton" type="button">-</button>
+          <span id="zoomLabel">适应</span>
+          <button id="zoomInButton" type="button">+</button>
+        </div>
+        <button class="workspace-download" id="workspaceDownloadTop" type="button" disabled>下载图片</button>
+      </header>
+
+      <aside class="workspace-rail" aria-label="工具栏">
+        <button class="active" type="button" data-workspace-tool="upload">上传</button>
+        <button type="button" data-workspace-tool="crop">裁剪</button>
+        <button type="button" data-workspace-tool="filter">滤镜</button>
+        <button type="button" data-workspace-tool="title">标题</button>
+        <button type="button" data-workspace-tool="export">导出</button>
+      </aside>
+
+      <aside class="workspace-panel-left" aria-label="工具参数">
+        <section class="workspace-tool-panel active" data-panel="upload">
+          <h2>上传图片</h2>
+          <label class="workspace-uploader">
+            <input id="workspaceFileInput" type="file" accept="image/*" />
+            <span>选择图片</span>
+            <small>支持拖拽、选择、粘贴图片</small>
+          </label>
+          <div class="workspace-note">所有处理都在浏览器本地完成。</div>
+        </section>
+
+        <section class="workspace-tool-panel" data-panel="crop">
+          <h2>裁剪</h2>
+          <div class="workspace-segment" id="workspaceCropMode" role="tablist" aria-label="裁剪模式">
+            <button class="active" type="button" data-crop-mode="size">尺寸调整</button>
+            <button type="button" data-crop-mode="ratio">比例裁剪</button>
+          </div>
+          <div class="workspace-preset-list" id="workspaceSizePanel">
+            <button class="active" type="button" data-size="custom">自定义尺寸</button>
+            <button type="button" data-size="wechat-main">公众号首图 <span>900 × 383</span></button>
+            <button type="button" data-size="wechat-sub">公众号次图 <span>200 × 200</span></button>
+            <button type="button" data-size="web-2k">网站大图2k <span>1920 × 960</span></button>
+            <button type="button" data-size="web-4k">网站大图4k <span>3840 × 1920</span></button>
+          </div>
+          <div class="workspace-preset-list hidden" id="workspaceRatioPanel">
+            <button class="active" type="button" data-ratio="free">自由裁剪</button>
+            <button type="button" data-ratio="1:1">1:1 正方形</button>
+            <button type="button" data-ratio="2:3">2:3 单反相机(竖)</button>
+            <button type="button" data-ratio="3:2">3:2 单反相机(横)</button>
+            <button type="button" data-ratio="3:4">3:4 标准屏幕(竖)</button>
+            <button type="button" data-ratio="4:3">4:3 标准屏幕(横)</button>
+            <button type="button" data-ratio="9:16">9:16 视频竖屏</button>
+            <button type="button" data-ratio="16:9">16:9 视频横屏</button>
+            <button type="button" data-ratio="9:18">9:18 全面屏(竖)</button>
+          </div>
+          <div class="workspace-two-fields">
+            <label class="workspace-field">
+              <span>宽度</span>
+              <input id="workspaceCropWidth" type="number" min="1" placeholder="宽" />
+            </label>
+            <label class="workspace-field">
+              <span>高度</span>
+              <input id="workspaceCropHeight" type="number" min="1" placeholder="高" />
+            </label>
+          </div>
+          <button class="workspace-primary" id="applyCropButton" type="button" disabled>应用裁剪</button>
+          <button class="workspace-secondary" id="resetCropButton" type="button" disabled>恢复原图</button>
+        </section>
+
+        <section class="workspace-tool-panel" data-panel="filter">
+          <h2>滤镜</h2>
+          <section class="workspace-filter-panel" data-workspace-collapsible>
+            <button class="workspace-filter-title" type="button" aria-expanded="true">
+              <span>滤镜</span><b>⌃</b>
+            </button>
+            <div class="workspace-filter-body">
+              <div class="workspace-preset-row workspace-filter-grid" id="workspaceFilterPresetGrid"></div>
+            </div>
+          </section>
+          <section class="workspace-filter-panel collapsed" data-workspace-collapsible>
+            <button class="workspace-filter-title" type="button" aria-expanded="false">
+              <span>基础调色</span><b>⌄</b>
+            </button>
+            <div class="workspace-filter-body">
+              <div class="workspace-slider-stack" id="workspaceBasicControls"></div>
+              <button class="workspace-secondary" id="workspaceResetBasicButton" type="button">重置基础调色</button>
+            </div>
+          </section>
+          <section class="workspace-filter-panel collapsed" data-workspace-collapsible>
+            <button class="workspace-filter-title" type="button" aria-expanded="false">
+              <span>高级调色</span><b>⌄</b>
+            </button>
+            <div class="workspace-filter-body">
+              <div class="workspace-segment" id="workspaceAdvancedTabs">
+                <button class="active" type="button" data-workspace-advanced-tab="light">光效</button>
+                <button type="button" data-workspace-advanced-tab="color">色彩</button>
+                <button type="button" data-workspace-advanced-tab="detail">细节</button>
+                <button type="button" data-workspace-advanced-tab="hsl">HSL</button>
+              </div>
+              <div class="workspace-slider-stack" id="workspaceAdvancedControls"></div>
+              <button class="workspace-secondary" id="workspaceResetAdvancedButton" type="button">重置高级调色</button>
+            </div>
+          </section>
+        </section>
+
+        <section class="workspace-tool-panel" data-panel="title">
+          <h2>标题</h2>
+          <div class="workspace-add-text">
+            <button type="button" data-add-workspace-text="title">标题</button>
+            <button type="button" data-add-workspace-text="subtitle">副标题</button>
+            <button type="button" data-add-workspace-text="body">正文</button>
+          </div>
+          <div class="workspace-note" id="workspaceNoTextTip">添加标题、副标题或正文后，再配置文字样式。</div>
+          <div class="workspace-title-config hidden" id="workspaceTitleConfig">
+            <div class="workspace-text-head">
+              <span>T</span>
+              <div>
+                <strong id="workspaceTextKind">标题</strong>
+                <div class="workspace-text-actions">
+                  <button type="button" id="duplicateTextLayerButton" title="复制">⧉</button>
+                  <button type="button" id="lockTextLayerButton" title="锁定">⌘</button>
+                  <button type="button" id="bringTextLayerButton" title="上移一层">▱</button>
+                </div>
+                <small>拖动画布中文字可调整位置，拖动右侧手柄可调整宽度。</small>
+              </div>
+            </div>
+            <label class="workspace-field">
+              <span>内容 <b id="workspaceTextCount">0 / 36</b></span>
+              <textarea id="workspaceTextContent" rows="3"></textarea>
+            </label>
+            <label class="workspace-field">
+              <span>字体</span>
+              <select id="workspaceTextFont">
+                <option value='"Noto Sans SC", "Source Han Sans SC", "思源黑体", "PingFang SC", "Microsoft YaHei", sans-serif'>思源黑体</option>
+                <option value='"Noto Serif SC", "Source Han Serif SC", "思源宋体", "Songti SC", serif'>思源宋体</option>
+                <option value='"Alimama ShuHeiTi", "阿里妈妈数黑体", "Alibaba PuHuiTi", "PingFang SC", sans-serif'>阿里妈妈数黑体</option>
+                <option value='"Alimama DaoLiTi", "阿里妈妈刀隶体", "Noto Serif SC", serif'>阿里妈妈刀隶体</option>
+                <option value='"Alibaba PuHuiTi", "阿里巴巴普惠体", "PingFang SC", sans-serif'>阿里巴巴普惠体</option>
+                <option value='"MiSans", "PingFang SC", "Microsoft YaHei", sans-serif'>MiSans</option>
+                <option value='"HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif'>HarmonyOS Sans</option>
+                <option value='"DingTalk JinBuTi", "钉钉进步体", "PingFang SC", sans-serif'>钉钉进步体</option>
+                <option value='"LXGW WenKai", "霞鹜文楷", "Kaiti SC", serif'>霞鹜文楷</option>
+                <option value='"ZCOOL QingKe HuangYou", "站酷庆科黄油体", "PingFang SC", sans-serif'>站酷庆科黄油体</option>
+              </select>
+            </label>
+            <div class="workspace-two-fields">
+              <label class="workspace-field">
+                <span>字号</span>
+                <input id="workspaceTextSize" type="number" min="12" max="260" value="72" />
+              </label>
+              <label class="workspace-field">
+                <span>颜色</span>
+                <input id="workspaceTextColor" type="color" value="#ffffff" />
+              </label>
+            </div>
+            <div class="workspace-segment" id="workspaceTextStyle">
+              <button class="active" type="button" data-text-style="bold">B</button>
+              <button type="button" data-text-style="italic">I</button>
+              <button type="button" data-text-style="underline">U</button>
+              <button type="button" data-text-style="strike">S</button>
+            </div>
+            <div class="workspace-segment" id="workspaceTextAlign">
+              <button class="active" type="button" data-align="left">左对齐</button>
+              <button type="button" data-align="center">居中</button>
+              <button type="button" data-align="right">右对齐</button>
+            </div>
+            <div class="workspace-two-fields">
+              <label class="workspace-field">
+                <span>字距</span>
+                <input id="workspaceTextLetterSpacing" type="number" min="-20" max="80" value="0" />
+              </label>
+              <label class="workspace-field">
+                <span>行高</span>
+                <input id="workspaceTextLineHeight" type="number" min="0.8" max="2.4" step="0.02" value="1.18" />
+              </label>
+            </div>
+            <label class="workspace-field">
+              <span>宽度</span>
+              <input id="workspaceTextWidth" type="number" min="80" value="600" />
+            </label>
+            <button class="workspace-secondary" id="deleteTextLayerButton" type="button" disabled>删除文字</button>
+          </div>
+        </section>
+
+        <section class="workspace-tool-panel" data-panel="export">
+          <h2>导出压缩</h2>
+          <label class="workspace-field">
+            <span>格式</span>
+            <select id="workspaceFormat">
+              <option value="image/jpeg" selected>JPG</option>
+              <option value="image/png">PNG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </label>
+          <label class="workspace-slider">
+            <span>质量 <b id="qualityValue">78</b></span>
+            <input id="qualityRange" type="range" min="10" max="100" value="78" />
+          </label>
+          <div class="workspace-two-fields">
+            <label class="workspace-field">
+              <span>最大宽</span>
+              <input id="maxWidthInput" type="number" min="1" placeholder="原宽" />
+            </label>
+            <label class="workspace-field">
+              <span>最大高</span>
+              <input id="maxHeightInput" type="number" min="1" placeholder="原高" />
+            </label>
+          </div>
+          <div class="workspace-option-row">
+            <label>
+              <input id="workspaceKeepSizeCheck" type="checkbox" checked />
+              <span>保持原图尺寸</span>
+            </label>
+            <label>
+              <input id="workspaceAspectLockCheck" type="checkbox" checked />
+              <span>绑定宽高比例</span>
+            </label>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace-canvas-shell" id="workspaceStage" aria-label="画布区域">
+        <div class="workspace-empty" id="workspaceEmpty">
+          <strong>拖入图片开始编辑</strong>
+          <span>裁剪、滤镜、标题和压缩会在同一个工作台内完成</span>
+        </div>
+        <canvas id="workspaceCanvas" aria-label="工作台画布"></canvas>
+      </section>
+
+      <aside class="workspace-panel-right" aria-label="图层和导出">
+        <section class="workspace-info">
+          <h2>图片信息</h2>
+          <dl>
+            <div><dt>尺寸</dt><dd id="workspaceSize">--</dd></div>
+            <div><dt>预计大小</dt><dd id="workspaceEstimate">--</dd></div>
+            <div><dt>图层</dt><dd id="workspaceLayerCount">0</dd></div>
+          </dl>
+        </section>
+        <section class="workspace-layers">
+          <h2>图层</h2>
+          <div id="workspaceLayersList" class="workspace-layer-list"></div>
+        </section>
+        <section class="workspace-export-box">
+          <h2>导出</h2>
+          <button class="workspace-primary" id="workspaceDownloadButton" type="button" disabled>下载图片</button>
+          <p id="workspaceStatus" class="workspace-status">等待上传图片</p>
+        </section>
+      </aside>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="analytics.js"></script>
+    <script src="workspace.js"></script>
+  </body>
+</html>

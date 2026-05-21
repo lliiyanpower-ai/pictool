@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片裁剪 - 图片工具箱</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell compressor-shell editor-shell">
+      <nav class="subnav" aria-label="页面导航">
+        <a href="index.html">← 返回工具箱</a>
+      </nav>
+
+      <section class="compressor editor-card" aria-labelledby="crop-title">
+        <div class="compressor-head">
+          <h1 id="crop-title">图片裁剪</h1>
+        </div>
+
+        <div class="crop-layout">
+          <aside class="crop-sidebar" aria-label="裁剪设置">
+            <label class="mini-uploader">
+              <input id="cropFileInput" type="file" accept="image/*" />
+              <span>选择图片</span>
+            </label>
+
+            <div class="segment-tabs" role="tablist" aria-label="裁剪模式">
+              <button class="active" type="button" data-mode="size">尺寸调整</button>
+              <button type="button" data-mode="ratio">比例裁剪</button>
+            </div>
+
+            <div class="preset-list" id="sizePanel">
+              <button class="active" type="button" data-size="custom">自定义尺寸</button>
+              <button type="button" data-size="wechat-main">公众号首图 <span>900 × 383</span></button>
+              <button type="button" data-size="wechat-sub">公众号次图 <span>200 × 200</span></button>
+              <button type="button" data-size="web-2k">网站大图2k <span>1920 × 960</span></button>
+              <button type="button" data-size="web-4k">网站大图4k <span>3840 × 1920</span></button>
+            </div>
+
+            <div class="preset-list hidden" id="ratioPanel">
+              <button class="active" type="button" data-ratio="free">自由裁剪</button>
+              <button type="button" data-ratio="1:1">1:1 正方形</button>
+              <button type="button" data-ratio="2:3">2:3 单反相机(竖)</button>
+              <button type="button" data-ratio="3:2">3:2 单反相机(横)</button>
+              <button type="button" data-ratio="3:4">3:4 标准屏幕(竖)</button>
+              <button type="button" data-ratio="4:3">4:3 标准屏幕(横)</button>
+              <button type="button" data-ratio="9:16">9:16 视频竖屏</button>
+              <button type="button" data-ratio="16:9">16:9 视频横屏</button>
+              <button type="button" data-ratio="9:18">9:18 全面屏(竖)</button>
+            </div>
+
+            <div class="dimension-row crop-dimensions">
+              <label>
+                <span>宽度</span>
+                <input id="cropWidthInput" type="number" min="1" placeholder="宽" />
+              </label>
+              <label>
+                <span>高度</span>
+                <input id="cropHeightInput" type="number" min="1" placeholder="高" />
+              </label>
+            </div>
+
+            <div class="download-row crop-actions">
+              <button id="cropApplyButton" type="button" disabled>应用</button>
+              <button id="cropResetButton" type="button">重置</button>
+            </div>
+            <label class="crop-format">
+              <span>导出格式 <b id="cropOutputSize">--</b></span>
+              <select id="cropFormatSelect">
+                <option value="image/png">PNG</option>
+                <option value="image/jpeg" selected>JPG</option>
+              </select>
+            </label>
+            <button class="compress-button" id="cropDownloadButton" type="button" disabled>下载图片</button>
+            <button class="secondary-action" id="sendToCompressButton" type="button" disabled>图片压缩</button>
+            <p class="status" id="cropStatusText" role="status">等待上传图片</p>
+          </aside>
+
+          <div class="crop-main">
+            <div class="crop-stage" id="cropStage">
+              <div class="empty-state">
+                <span></span>
+                <p>上传图片后开始裁剪</p>
+                <small>可拖拽图片到此处</small>
+              </div>
+              <img id="cropImage" alt="待裁剪图片" />
+              <div class="crop-box" id="cropBox">
+                <span class="crop-grid-line v1"></span>
+                <span class="crop-grid-line v2"></span>
+                <span class="crop-grid-line h1"></span>
+                <span class="crop-grid-line h2"></span>
+                <button class="crop-handle nw" type="button" data-handle="nw" aria-label="调整左上角"></button>
+                <button class="crop-handle ne" type="button" data-handle="ne" aria-label="调整右上角"></button>
+                <button class="crop-handle sw" type="button" data-handle="sw" aria-label="调整左下角"></button>
+                <button class="crop-handle se" type="button" data-handle="se" aria-label="调整右下角"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="analytics.js"></script>
+    <script src="crop.js"></script>
+  </body>
+</html>

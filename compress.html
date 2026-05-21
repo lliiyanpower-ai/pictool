@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片压缩 - 图片工具箱</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell compressor-shell">
+      <nav class="subnav" aria-label="页面导航">
+        <a href="index.html">← 返回工具箱</a>
+      </nav>
+
+      <section class="compressor" id="compressor" aria-labelledby="compressor-title">
+        <div class="compressor-head">
+          <h1 id="compressor-title">图片压缩</h1>
+        </div>
+
+        <div class="compressor-grid">
+          <div class="upload-panel">
+            <label class="dropzone" id="dropzone">
+              <input id="fileInput" type="file" accept="image/*" />
+              <span class="upload-icon">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M24 34V10m0 0-8 8m8-8 8 8" />
+                  <path d="M10 34v4h28v-4" />
+                </svg>
+              </span>
+              <strong>拖拽、粘贴或选择图片</strong>
+              <small>支持 JPG、PNG、WebP、GIF 静态帧等常见图片</small>
+              <span class="choose-button">选择图片</span>
+            </label>
+
+            <div class="settings" aria-label="压缩设置">
+              <label>
+                <span>导出格式</span>
+                <select id="formatSelect">
+                  <option value="image/jpeg" selected>JPEG</option>
+                  <option value="image/webp">WebP</option>
+                  <option value="image/png">PNG</option>
+                </select>
+              </label>
+
+              <label>
+                <span>压缩质量 <b id="qualityValue">78%</b></span>
+                <input id="qualityRange" type="range" min="10" max="100" value="78" />
+              </label>
+
+              <div class="dimension-row">
+                <label>
+                  <span>最大宽度</span>
+                  <input id="maxWidthInput" type="number" min="1" placeholder="原始" />
+                </label>
+                <label>
+                  <span>最大高度</span>
+                  <input id="maxHeightInput" type="number" min="1" placeholder="原始" />
+                </label>
+              </div>
+
+              <div class="option-row">
+                <label class="checkbox-line">
+                  <input id="keepSizeCheck" type="checkbox" checked />
+                  <span>保持原图尺寸</span>
+                </label>
+                <label class="checkbox-line">
+                  <input id="aspectLockCheck" type="checkbox" checked />
+                  <span>绑定宽高比例</span>
+                </label>
+              </div>
+
+              <button class="compress-button" id="compressButton" type="button" disabled>开始压缩</button>
+            </div>
+          </div>
+
+          <div class="preview-panel">
+            <div class="preview-stage" id="previewStage" aria-label="拖动图片上的分割线对比压缩前后效果">
+              <div class="empty-state">
+                <span></span>
+                <p>上传图片后查看压缩前后效果</p>
+              </div>
+              <img id="originalPreview" alt="原图预览" />
+              <img id="compressedPreview" alt="压缩后预览" />
+              <div class="compare-mask" id="compareMask"></div>
+            </div>
+
+            <div class="stats-grid">
+              <div>
+                <small>原图大小</small>
+                <strong id="originalSize">--</strong>
+              </div>
+              <div>
+                <small>压缩后</small>
+                <strong id="compressedSize">--</strong>
+              </div>
+              <div>
+                <small>节省空间</small>
+                <strong id="savedSize">--</strong>
+              </div>
+              <div>
+                <small>尺寸</small>
+                <strong id="imageSize">--</strong>
+              </div>
+            </div>
+
+            <div class="download-row">
+              <button id="downloadButton" type="button" disabled>下载压缩图片</button>
+              <button id="resetButton" type="button">重新选择</button>
+            </div>
+            <p class="status" id="statusText" role="status">等待上传图片</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="analytics.js"></script>
+    <script src="compress.js"></script>
+  </body>
+</html>

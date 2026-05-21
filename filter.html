@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片滤镜 - 图片工具箱</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell compressor-shell editor-shell">
+      <nav class="subnav" aria-label="页面导航">
+        <a href="index.html">← 返回工具箱</a>
+      </nav>
+
+      <section class="compressor editor-card" aria-labelledby="filter-title">
+        <div class="compressor-head">
+          <h1 id="filter-title">图片滤镜</h1>
+        </div>
+
+        <div class="filter-layout">
+          <aside class="filter-sidebar" aria-label="滤镜设置">
+            <label class="mini-uploader">
+              <input id="filterFileInput" type="file" accept="image/*" />
+              <span>选择图片</span>
+            </label>
+
+            <section class="filter-panel" data-collapsible>
+              <button class="filter-panel-title" type="button" aria-expanded="true">
+                <span>滤镜</span><b>⌃</b>
+              </button>
+              <div class="filter-panel-body">
+                <div class="filter-preset-grid" id="filterPresetGrid"></div>
+              </div>
+            </section>
+
+            <section class="filter-panel collapsed" data-collapsible>
+              <button class="filter-panel-title" type="button" aria-expanded="false">
+                <span>基础调色</span><b>⌄</b>
+              </button>
+              <div class="filter-panel-body">
+                <div class="slider-stack" id="basicControls"></div>
+                <button class="secondary-action" id="resetBasicButton" type="button">重置基础调色</button>
+              </div>
+            </section>
+
+            <section class="filter-panel collapsed" data-collapsible>
+              <button class="filter-panel-title" type="button" aria-expanded="false">
+                <span>高级调色</span><b>⌄</b>
+              </button>
+              <div class="filter-panel-body">
+                <div class="segment-tabs compact-tabs" role="tablist" aria-label="高级调色">
+                  <button class="active" type="button" data-advanced-tab="light">光效</button>
+                  <button type="button" data-advanced-tab="color">色彩</button>
+                  <button type="button" data-advanced-tab="detail">细节</button>
+                  <button type="button" data-advanced-tab="hsl">HSL</button>
+                </div>
+                <div class="slider-stack" id="advancedControls"></div>
+                <button class="secondary-action" id="resetAdvancedButton" type="button">重置高级调色</button>
+              </div>
+            </section>
+
+            <label class="crop-format">
+              <span>导出格式 <b id="filterOutputSize">--</b></span>
+              <select id="filterFormatSelect">
+                <option value="image/png">PNG</option>
+                <option value="image/jpeg" selected>JPG</option>
+              </select>
+            </label>
+            <button class="compress-button" id="filterDownloadButton" type="button" disabled>下载图片</button>
+            <button class="secondary-action" id="filterToCompressButton" type="button" disabled>图片压缩</button>
+            <p class="status" id="filterStatusText" role="status">等待上传图片</p>
+          </aside>
+
+          <div class="filter-main">
+            <div class="filter-stage" id="filterStage">
+              <div class="empty-state">
+                <span></span>
+                <p>上传图片后实时预览效果</p>
+                <small>可拖拽图片到此处</small>
+              </div>
+              <canvas id="filterCanvas" aria-label="滤镜预览画布"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="analytics.js"></script>
+    <script src="filter.js"></script>
+  </body>
+</html>

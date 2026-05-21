@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片工具箱</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <h1 id="page-title"><i aria-hidden="true"></i><span>图片</span>工具箱</h1>
+          <p>简单好用的在线图片处理工具，让网站内容配图更高效、更专业</p>
+        </div>
+
+        <div class="tool-layout">
+          <section class="tool-grid" aria-label="图片工具">
+            <a class="tool-card active-card" href="compress.html">
+              <span class="orb orb-green">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M11 12h26a4 4 0 0 1 4 4v22H7V16a4 4 0 0 1 4-4Z" />
+                  <path d="m10 35 10-12 8 9 5-6 8 9" />
+                  <circle cx="16" cy="18" r="3" />
+                </svg>
+                <span class="mini-badge">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" />
+                  </svg>
+                </span>
+              </span>
+              <strong>图片压缩</strong>
+              <small>智能压缩图片大小<br />支持自定义压缩质量和目标大小</small>
+              <span class="arrow arrow-green">→</span>
+            </a>
+
+            <a class="tool-card" href="crop.html">
+              <span class="orb orb-blue">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M14 6v26a2 2 0 0 0 2 2h26" />
+                  <path d="M6 14h26a2 2 0 0 1 2 2v26" />
+                  <path d="M34 24h8M24 34v8" />
+                </svg>
+              </span>
+              <strong>图片裁剪</strong>
+              <small>按需要裁剪图片尺寸<br />支持常用尺寸和自由比例</small>
+              <span class="arrow arrow-blue">→</span>
+            </a>
+
+            <a class="tool-card" href="filter.html">
+              <span class="orb orb-violet">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="m12 35 21-21 3 3-21 21-7 2 2-7Z" />
+                  <path d="m29 10 9 9" />
+                  <path d="M11 9v5M8.5 11.5h5M36 31v6M33 34h6M19 8l2 4 4 2-4 2-2 4-2-4-4-2 4-2Z" />
+                </svg>
+              </span>
+              <strong>图片滤镜</strong>
+              <small>多种风格滤镜和调色工具<br />让图片更清晰、更有质感</small>
+              <span class="arrow arrow-violet">→</span>
+            </a>
+
+            <a class="tool-card" href="title.html">
+              <span class="orb orb-orange">
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M16 16h16M24 16v21" />
+                  <path d="M9 17V9h8M31 9h8v8M39 31v8h-8M17 39H9v-8" />
+                </svg>
+              </span>
+              <strong>标题排版</strong>
+              <small>多种标题模板和样式<br />一键生成精美标题图</small>
+              <span class="arrow arrow-orange">→</span>
+            </a>
+          </section>
+
+          <aside class="workspace-panel" aria-label="工作台">
+            <div class="panel-icon" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <h2>工作台</h2>
+            <p>功能最全的编辑器，从上传到设计、编辑、导出<br />一站式完成图片制作</p>
+            <div class="panel-rule"></div>
+            <div class="panel-tools">
+              <span>
+                <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 4v18h18M4 10h18v18M21 16h7M16 21v7" /></svg>
+                裁剪调整
+              </span>
+              <span>
+                <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 6h16M16 6v22M11 28h10" /></svg>
+                标题模板
+              </span>
+              <span>
+                <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 19a7 7 0 1 1 4-12 7 7 0 1 1 4 12 7 7 0 1 1-8 0Z" /></svg>
+                滤镜美化
+              </span>
+              <span>
+                <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 7h22v18H5zM8 22l6-7 5 5 3-4 5 6" /><circle cx="22" cy="12" r="2" /></svg>
+                图片压缩
+              </span>
+            </div>
+            <a class="primary-action" href="workspace.html">进入工作台 <span>→</span></a>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="analytics.js"></script>
+    <script src="home.js"></script>
+  </body>
+</html>

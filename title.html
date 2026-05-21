@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>标题排版 - 图片工具箱</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell compressor-shell editor-shell">
+      <nav class="subnav" aria-label="页面导航">
+        <a href="index.html">← 返回工具箱</a>
+      </nav>
+
+      <section class="compressor editor-card" aria-labelledby="title-tool-heading">
+        <div class="compressor-head">
+          <h1 id="title-tool-heading">标题排版</h1>
+        </div>
+
+        <div class="title-layout">
+          <aside class="title-sidebar" aria-label="标题排版设置">
+            <section class="step-panel">
+              <div class="step-title"><span>1</span>上传图片</div>
+              <label class="mini-uploader">
+                <input id="titleImageInput" type="file" accept="image/*" />
+                <span>选择图片</span>
+              </label>
+            </section>
+
+            <section class="step-panel text-add-panel">
+              <div class="step-title"><span>2</span>点击添加文本</div>
+              <div class="text-add-grid" id="textAddGrid">
+                <button type="button" data-add-text="title">标题</button>
+                <button type="button" data-add-text="subtitle">副标题</button>
+                <button type="button" data-add-text="body">正文</button>
+              </div>
+              <p class="helper-text">虚线框为标题安全区。拖动文字可调整位置，拖动右侧手柄可调整换行宽度，导出时不会显示。</p>
+            </section>
+
+            <section class="step-panel text-inspector" id="textInspector">
+              <div class="inspector-head">
+                <span class="text-icon">T</span>
+                <div>
+                  <strong id="selectedTextLabel">文字</strong>
+                  <div class="icon-toolbar" aria-label="文本操作">
+                    <button type="button" id="duplicateTextButton" title="复制">⧉</button>
+                    <button type="button" id="lockTextButton" title="锁定">⌘</button>
+                    <button type="button" id="bringTextButton" title="上移一层">▱</button>
+                    <button type="button" id="deleteTextButton" title="删除">⌫</button>
+                  </div>
+                </div>
+              </div>
+
+              <label class="form-line">
+                <span>内容 <b id="titleCountHint">0 / 36</b></span>
+                <textarea id="textContentInput" rows="3"></textarea>
+              </label>
+
+              <div class="inspector-row">
+                <span>字体</span>
+                <select id="textFontSelect">
+                  <option value='"Noto Sans SC", "Source Han Sans SC", "思源黑体", "PingFang SC", "Microsoft YaHei", sans-serif'>思源黑体</option>
+                  <option value='"Noto Serif SC", "Source Han Serif SC", "思源宋体", "Songti SC", serif'>思源宋体</option>
+                  <option value='"Alimama ShuHeiTi", "阿里妈妈数黑体", "Alibaba PuHuiTi", "PingFang SC", sans-serif'>阿里妈妈数黑体</option>
+                  <option value='"Alimama DaoLiTi", "阿里妈妈刀隶体", "Noto Serif SC", serif'>阿里妈妈刀隶体</option>
+                  <option value='"Alibaba PuHuiTi", "阿里巴巴普惠体", "PingFang SC", "Microsoft YaHei", sans-serif'>阿里巴巴普惠体</option>
+                  <option value='"MiSans", "PingFang SC", "Microsoft YaHei", sans-serif'>MiSans</option>
+                  <option value='"HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif'>HarmonyOS Sans</option>
+                  <option value='"DingTalk JinBuTi", "钉钉进步体", "PingFang SC", sans-serif'>钉钉进步体</option>
+                  <option value='"LXGW WenKai", "霞鹜文楷", "Kaiti SC", serif'>霞鹜文楷</option>
+                  <option value='"ZCOOL QingKe HuangYou", "站酷庆科黄油体", "PingFang SC", sans-serif'>站酷庆科黄油体</option>
+                </select>
+              </div>
+
+              <div class="inspector-row two-fields">
+                <span>字号</span>
+                <input id="textSizeInput" type="number" min="10" max="360" />
+                <input id="textColorInput" type="color" />
+              </div>
+
+              <div class="inspector-row">
+                <span>样式</span>
+                <div class="segmented-icons" id="styleButtons">
+                  <button type="button" data-toggle-style="bold"><b>B</b></button>
+                  <button type="button" data-toggle-style="italic"><i>I</i></button>
+                  <button type="button" data-toggle-style="underline"><u>U</u></button>
+                  <button type="button" data-toggle-style="strike"><s>S</s></button>
+                </div>
+              </div>
+
+              <div class="inspector-row">
+                <span>对齐</span>
+                <div class="segmented-icons" id="alignButtons">
+                  <button type="button" data-align="left">左对齐</button>
+                  <button type="button" data-align="center">居中</button>
+                  <button type="button" data-align="right">右对齐</button>
+                </div>
+              </div>
+
+              <div class="inspector-row two-fields spacing-row">
+                <span>间距</span>
+                <input id="letterSpacingInput" type="number" min="0" max="120" />
+                <input id="lineHeightInput" type="number" min="0.8" max="2.5" step="0.05" />
+              </div>
+            </section>
+
+            <section class="step-panel">
+              <div class="step-title"><span>3</span>导出图片</div>
+              <label class="crop-format">
+                <span>导出格式 <b id="titleOutputSize">--</b></span>
+                <select id="titleFormatSelect">
+                  <option value="image/png">PNG</option>
+                  <option value="image/jpeg" selected>JPG</option>
+                </select>
+              </label>
+              <div class="export-actions">
+                <button class="compress-button" id="titleDownloadButton" type="button" disabled>下载图片</button>
+                <button class="secondary-action" id="titleToCompressButton" type="button" disabled>图片压缩</button>
+              </div>
+              <p class="status" id="titleStatusText" role="status">等待上传图片</p>
+            </section>
+          </aside>
+
+          <div class="title-main">
+            <div class="title-stage" id="titleStage">
+              <div class="empty-state">
+                <span></span>
+                <p>上传图片后实时预览标题排版</p>
+                <small>可拖拽图片到此处</small>
+              </div>
+              <canvas id="titleCanvas" aria-label="标题图预览画布"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="analytics.js"></script>
+    <script src="title.js"></script>
+  </body>
+</html>
