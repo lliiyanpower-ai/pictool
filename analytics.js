@@ -3,21 +3,8 @@
     enabled: true,
     debug: false,
     endpoint: "",
-    app: "image-toolbox",
-    baiduId: "fdcabcd2bd41f07244795afe47e8d495"
+    app: "image-toolbox"
   };
-
-  function loadBaiduAnalytics() {
-    if (!config.baiduId || window.__baiduAnalyticsLoaded) return;
-    window.__baiduAnalyticsLoaded = true;
-    window._hmt = window._hmt || [];
-
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = `https://hm.baidu.com/hm.js?${config.baiduId}`;
-    const firstScript = document.getElementsByTagName("script")[0];
-    firstScript.parentNode.insertBefore(script, firstScript);
-  }
 
   function getPageName() {
     const path = location.pathname.split("/").pop() || "index.html";
@@ -52,10 +39,7 @@
 
   window.configureTracking = function configureTracking(options = {}) {
     Object.assign(config, options);
-    loadBaiduAnalytics();
   };
-
-  loadBaiduAnalytics();
 
   window.addEventListener("DOMContentLoaded", () => {
     window.trackEvent("page_view");
