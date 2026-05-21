@@ -104,6 +104,10 @@ cropDownloadButton.addEventListener("click", downloadOutput);
 sendToCompressButton.addEventListener("click", sendToCompress);
 cropResetButton.addEventListener("click", resetCrop);
 cropFormatSelect.addEventListener("change", () => {
+  trackEvent("export_format_selected", {
+    tool: "crop",
+    format: cropFormatSelect.value
+  });
   if (outputBlob) renderOutput();
 });
 
@@ -128,6 +132,9 @@ function setMode(mode) {
 function setSizePreset(key) {
   restoreCropEditing();
   activeSize = key;
+  trackToolEvent("crop", "preset_selected", {
+    preset: key
+  });
   sizePanel.querySelectorAll("button").forEach((button) => {
     button.classList.toggle("active", button.dataset.size === key);
   });
@@ -144,6 +151,9 @@ function setSizePreset(key) {
 
 function setRatioPreset(key) {
   restoreCropEditing();
+  trackToolEvent("crop", "ratio_selected", {
+    ratio: key
+  });
   ratioPanel.querySelectorAll("button").forEach((button) => {
     button.classList.toggle("active", button.dataset.ratio === key);
   });
@@ -159,13 +169,12 @@ function getActiveRatioKey() {
 async function loadFile(file) {
   if (!file.type.startsWith("image/")) {
     showToast("请选择图片文件。");
+    trackEvent("upload_failed", {
+      tool: "crop",
+      reason: "unsupported_format"
+    });
     return;
   }
-  trackEvent("image_uploaded", {
-    tool: "crop",
-    file_size_mb: Number((file.size / 1024 / 1024).toFixed(2)),
-    mime: file.type
-  });
 
   revokeUrls();
   sourceFileName = file.name.replace(/\.[^.]+$/, "") || "image";
@@ -174,6 +183,10 @@ async function loadFile(file) {
   const image = new Image();
   image.onload = () => {
     sourceImage = image;
+    trackEvent("image_uploaded", {
+      tool: "crop",
+      ...getImageAnalyticsMeta(file, image.naturalWidth, image.naturalHeight)
+    });
     cropRect = null;
     outputBlob = null;
     outputTarget = null;
@@ -187,6 +200,10 @@ async function loadFile(file) {
   };
   image.onerror = () => {
     resetCrop();
+    trackEvent("upload_failed", {
+      tool: "crop",
+      reason: "read_failed"
+    });
     showToast("图片读取失败，请换一张图片试试。");
   };
   image.src = sourceObjectUrl;
@@ -359,9 +376,10 @@ function readInputRatio() {
 
 async function renderOutput() {
   if (!sourceImage || !cropRect) return;
-  trackEvent("crop_applied", {
+  trackToolEvent("crop", "applied", {
     tool: "crop",
     mode: activeMode,
+    preset: activeSize,
     ratio: getActiveRatioKey(),
     format: cropFormatSelect.value
   });
@@ -458,6 +476,11 @@ async function downloadOutput() {
 }
 
 function resetCrop() {
+  if (sourceImage || outputBlob) {
+    trackToolEvent("crop", "reset", {
+      mode: activeMode
+    });
+  }
   cropFileInput.value = "";
   sourceImage = null;
   cropRect = null;

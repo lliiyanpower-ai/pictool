@@ -88,6 +88,18 @@ function bindEvents() {
     input.addEventListener("input", updateSelectedLayerFromInspector);
     input.addEventListener("change", updateSelectedLayerFromInspector);
   });
+  textFontSelect.addEventListener("change", () => {
+    trackToolEvent("title", "font_changed", {
+      font: textFontSelect.value
+    });
+  });
+  [textSizeInput, textColorInput, letterSpacingInput, lineHeightInput].forEach((input) => {
+    input.addEventListener("change", () => {
+      trackToolEvent("title", "style_changed", {
+        control: input.id.replace("text", "").replace("Input", "").toLowerCase()
+      });
+    });
+  });
 
   styleButtons.querySelectorAll("[data-toggle-style]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -95,6 +107,10 @@ function bindEvents() {
       if (!layer) return;
       const key = button.dataset.toggleStyle;
       layer[key] = !layer[key];
+      trackToolEvent("title", "style_changed", {
+        control: key,
+        enabled: layer[key]
+      });
       updateInspector();
       renderPreview();
     });
@@ -105,6 +121,10 @@ function bindEvents() {
       const layer = getSelectedLayer();
       if (!layer) return;
       layer.align = button.dataset.align;
+      trackToolEvent("title", "style_changed", {
+        control: "align",
+        align: layer.align
+      });
       updateInspector();
       renderPreview();
     });
@@ -122,7 +142,13 @@ function bindEvents() {
   });
 
   titleFormatSelect.addEventListener("input", renderPreview);
-  titleFormatSelect.addEventListener("change", renderPreview);
+  titleFormatSelect.addEventListener("change", () => {
+    trackEvent("export_format_selected", {
+      tool: "title",
+      format: titleFormatSelect.value
+    });
+    renderPreview();
+  });
 
   titleImageInput.addEventListener("change", () => {
     const [file] = titleImageInput.files;
@@ -156,7 +182,7 @@ function bindEvents() {
 }
 
 function addTextLayer(type) {
-  trackEvent("title_added", {
+  trackToolEvent("title", "added", {
     tool: "title",
     text_type: type
   });
@@ -288,24 +314,37 @@ function handleDrag(event) {
 }
 
 function loadImage(file) {
-  trackEvent("image_uploaded", {
-    tool: "title",
-    file_size_mb: Number((file.size / 1024 / 1024).toFixed(2)),
-    mime: file.type
-  });
+  if (!file.type.startsWith("image/")) {
+    trackEvent("upload_failed", {
+      tool: "title",
+      reason: "unsupported_format"
+    });
+    showToast("请选择图片文件。");
+    return;
+  }
   if (sourceObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
   sourceFileName = file.name.replace(/\.[^.]+$/, "") || "title-image";
   sourceObjectUrl = URL.createObjectURL(file);
   const image = new Image();
   image.onload = () => {
     sourceImage = image;
+    trackEvent("image_uploaded", {
+      tool: "title",
+      ...getImageAnalyticsMeta(file, image.naturalWidth, image.naturalHeight)
+    });
     titleStage.classList.add("has-image");
     titleDownloadButton.disabled = false;
     titleToCompressButton.disabled = false;
     titleStatusText.textContent = `已载入：${formatDisplayFileName(file.name)}`;
     renderPreview();
   };
-  image.onerror = () => showToast("图片读取失败，请换一张图片试试。");
+  image.onerror = () => {
+    trackEvent("upload_failed", {
+      tool: "title",
+      reason: "read_failed"
+    });
+    showToast("图片读取失败，请换一张图片试试。");
+  };
   image.src = sourceObjectUrl;
 }
 

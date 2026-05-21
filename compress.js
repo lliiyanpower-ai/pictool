@@ -32,6 +32,19 @@ let syncingDimensions = false;
 qualityRange.addEventListener("input", () => {
   qualityValue.textContent = `${qualityRange.value}%`;
 });
+qualityRange.addEventListener("change", () => {
+  trackToolEvent("compress", "quality_changed", {
+    quality: Number(qualityRange.value),
+    format: formatSelect.value
+  });
+});
+
+formatSelect.addEventListener("change", () => {
+  trackEvent("export_format_selected", {
+    tool: "compress",
+    format: formatSelect.value
+  });
+});
 
 keepSizeCheck.addEventListener("change", () => {
   const locked = keepSizeCheck.checked;
@@ -89,13 +102,12 @@ hydrateCropTransfer();
 async function loadFile(file) {
   if (!file.type.startsWith("image/")) {
     showToast("请选择图片文件。");
+    trackEvent("upload_failed", {
+      tool: "compress",
+      reason: "unsupported_format"
+    });
     return;
   }
-  trackEvent("image_uploaded", {
-    tool: "compress",
-    file_size_mb: Number((file.size / 1024 / 1024).toFixed(2)),
-    mime: file.type
-  });
 
   revokeUrls();
   selectedFile = file;
@@ -113,12 +125,20 @@ async function loadFile(file) {
 
   try {
     sourceBitmap = await createImageBitmap(file);
+    trackEvent("image_uploaded", {
+      tool: "compress",
+      ...getImageAnalyticsMeta(file, sourceBitmap.width, sourceBitmap.height)
+    });
     imageSize.textContent = `${sourceBitmap.width} × ${sourceBitmap.height}`;
     compressButton.disabled = false;
     statusText.textContent = `已载入：${file.name}`;
     await compressImage();
   } catch (error) {
     resetAll();
+    trackEvent("upload_failed", {
+      tool: "compress",
+      reason: "read_failed"
+    });
     showToast("图片读取失败，请换一张图片试试。");
   }
 }
@@ -143,7 +163,7 @@ async function hydrateCropTransfer() {
 
 async function compressImage() {
   if (!selectedFile || !sourceBitmap) return;
-  trackEvent("compress_started", {
+  trackToolEvent("compress", "started", {
     tool: "compress",
     format: formatSelect.value,
     quality: Number(qualityRange.value),
@@ -168,6 +188,11 @@ async function compressImage() {
   const blob = await canvasToBlob(canvas, formatSelect.value, quality);
 
   if (!blob) {
+    trackEvent("download_failed", {
+      tool: "compress",
+      reason: "unsupported_format",
+      format: formatSelect.value
+    });
     showToast("当前浏览器不支持此导出格式。");
     compressButton.disabled = false;
     compressButton.textContent = "开始压缩";
@@ -191,7 +216,7 @@ async function compressImage() {
   statusText.textContent = saved >= 0
     ? `压缩完成，体积减少 ${Math.round((saved / selectedFile.size) * 100)}%。`
     : "已导出，新文件比原图更大，可降低质量或换 WebP。";
-  trackEvent("compress_success", {
+  trackToolEvent("compress", "success", {
     tool: "compress",
     format: formatSelect.value,
     output_size_mb: Number((blob.size / 1024 / 1024).toFixed(2)),
@@ -254,7 +279,8 @@ function downloadCompressed() {
   if (!compressedObjectUrl) return;
   trackEvent("download_clicked", {
     tool: "compress",
-    format: formatSelect.value
+    format: formatSelect.value,
+    quality: Number(qualityRange.value)
   });
   const link = document.createElement("a");
   link.href = compressedObjectUrl;

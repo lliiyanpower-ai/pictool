@@ -134,17 +134,29 @@ document.querySelectorAll("[data-advanced-tab]").forEach((button) => {
 
 resetBasicButton.addEventListener("click", () => {
   basicControlDefs.forEach(([id]) => setControlValue(id, 0));
+  trackToolEvent("filter", "adjusted", {
+    control: "basic_reset"
+  });
   scheduleRender();
 });
 
 resetAdvancedButton.addEventListener("click", () => {
   Object.values(advancedTabs).flat().forEach(([id]) => setControlValue(id, 0));
+  trackToolEvent("filter", "adjusted", {
+    control: "advanced_reset"
+  });
   scheduleRender();
 });
 
 filterDownloadButton.addEventListener("click", downloadImage);
 filterToCompressButton.addEventListener("click", sendToCompress);
-filterFormatSelect.addEventListener("change", updateOutputEstimate);
+filterFormatSelect.addEventListener("change", () => {
+  trackEvent("export_format_selected", {
+    tool: "filter",
+    format: filterFormatSelect.value
+  });
+  updateOutputEstimate();
+});
 window.addEventListener("resize", scheduleRender);
 
 function buildPresetGrid() {
@@ -158,7 +170,7 @@ function buildPresetGrid() {
   filterPresetGrid.querySelectorAll("[data-preset]").forEach((button) => {
     button.addEventListener("click", () => {
       activePreset = button.dataset.preset;
-      trackEvent("filter_applied", {
+      trackToolEvent("filter", "preset_selected", {
         tool: "filter",
         preset: activePreset
       });
@@ -187,6 +199,8 @@ function buildControls(defs, target) {
 
     range.addEventListener("input", () => updateControl(id, range.value));
     number.addEventListener("input", () => updateControl(id, number.value));
+    range.addEventListener("change", () => trackFilterAdjustment(id));
+    number.addEventListener("change", () => trackFilterAdjustment(id));
     target.append(wrap);
   });
 }
@@ -200,6 +214,12 @@ function updateControl(id, rawValue) {
   state[id] = Number.isFinite(value) ? value : 0;
   syncControlInputs(id);
   scheduleRender();
+}
+
+function trackFilterAdjustment(id) {
+  trackToolEvent("filter", "adjusted", {
+    control: id
+  });
 }
 
 function setControlValue(id, value) {
@@ -223,13 +243,12 @@ function handleDrag(event) {
 function loadFile(file) {
   if (!file.type.startsWith("image/")) {
     showToast("请选择图片文件。");
+    trackEvent("upload_failed", {
+      tool: "filter",
+      reason: "unsupported_format"
+    });
     return;
   }
-  trackEvent("image_uploaded", {
-    tool: "filter",
-    file_size_mb: Number((file.size / 1024 / 1024).toFixed(2)),
-    mime: file.type
-  });
 
   if (sourceObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
   sourceFileName = file.name.replace(/\.[^.]+$/, "") || "image";
@@ -238,6 +257,10 @@ function loadFile(file) {
   const image = new Image();
   image.onload = () => {
     sourceImage = image;
+    trackEvent("image_uploaded", {
+      tool: "filter",
+      ...getImageAnalyticsMeta(file, image.naturalWidth, image.naturalHeight)
+    });
     previewBitmap = makePreviewCanvas(image);
     clearOutputCache();
     filterStage.classList.add("has-image");
@@ -248,6 +271,10 @@ function loadFile(file) {
     updateOutputEstimate();
   };
   image.onerror = () => {
+    trackEvent("upload_failed", {
+      tool: "filter",
+      reason: "read_failed"
+    });
     showToast("图片读取失败，请换一张图片试试。");
   };
   image.src = sourceObjectUrl;

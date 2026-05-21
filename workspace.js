@@ -235,6 +235,10 @@ function bindWorkspaceEvents() {
   workspaceAdvancedTabs.querySelectorAll("[data-workspace-advanced-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeAdvancedTab = button.dataset.workspaceAdvancedTab;
+      trackToolEvent("filter", "adjusted", {
+        tool: "workspace",
+        control: `advanced_tab_${state.activeAdvancedTab}`
+      });
       workspaceAdvancedTabs.querySelectorAll("[data-workspace-advanced-tab]").forEach((item) => {
         item.classList.toggle("active", item === button);
       });
@@ -256,6 +260,20 @@ function bindWorkspaceEvents() {
     input.addEventListener("focus", recordHistory);
     input.addEventListener("input", updateSelectedTextFromPanel);
   });
+  workspaceTextFont.addEventListener("change", () => {
+    trackToolEvent("title", "font_changed", {
+      tool: "workspace",
+      font: workspaceTextFont.value
+    });
+  });
+  [workspaceTextSize, workspaceTextColor, workspaceTextLetterSpacing, workspaceTextLineHeight, workspaceTextWidth].forEach((input) => {
+    input.addEventListener("change", () => {
+      trackToolEvent("title", "style_changed", {
+        tool: "workspace",
+        control: input.id.replace("workspaceText", "").toLowerCase()
+      });
+    });
+  });
 
   workspaceTextStyle.querySelectorAll("[data-text-style]").forEach((button) => {
     button.addEventListener("click", () => toggleSelectedTextStyle(button.dataset.textStyle));
@@ -267,6 +285,11 @@ function bindWorkspaceEvents() {
       if (!layer) return;
       recordHistory();
       layer.align = button.dataset.align;
+      trackToolEvent("title", "style_changed", {
+        tool: "workspace",
+        control: "align",
+        align: layer.align
+      });
       updateTextPanel();
       renderWorkspace();
     });
@@ -283,6 +306,19 @@ function bindWorkspaceEvents() {
       renderWorkspace();
     });
     input.addEventListener("change", renderWorkspace);
+  });
+  workspaceFormat.addEventListener("change", () => {
+    trackEvent("export_format_selected", {
+      tool: "workspace",
+      format: workspaceFormat.value
+    });
+  });
+  qualityRange.addEventListener("change", () => {
+    trackEvent("export_quality_changed", {
+      tool: "workspace",
+      quality: Number(qualityRange.value),
+      format: workspaceFormat.value
+    });
   });
   workspaceKeepSizeCheck.addEventListener("change", syncExportSizeLock);
   workspaceAspectLockCheck.addEventListener("change", () => renderWorkspace());
@@ -305,11 +341,19 @@ function bindWorkspaceEvents() {
 }
 
 function setActiveTool(tool) {
+  const previousTool = state.activeTool;
   state.activeTool = tool;
-  trackEvent(tool === "workspace" ? "workspace_opened" : "tool_opened", {
-    tool,
-    source: "workspace"
-  });
+  if (previousTool !== tool) {
+    trackEvent("workspace_tool_switched", {
+      tool: "workspace",
+      from: previousTool,
+      to: tool
+    });
+    trackEvent("tool_opened", {
+      tool,
+      source: "workspace"
+    });
+  }
   document.querySelectorAll("[data-workspace-tool]").forEach((button) => {
     button.classList.toggle("active", button.dataset.workspaceTool === tool);
   });
@@ -324,15 +368,22 @@ function handleStageDrag(event) {
 }
 
 function loadWorkspaceImage(file) {
-  trackEvent("image_uploaded", {
-    tool: "workspace",
-    file_size_mb: Number((file.size / 1024 / 1024).toFixed(2)),
-    mime: file.type
-  });
+  if (!file.type.startsWith("image/")) {
+    trackEvent("upload_failed", {
+      tool: "workspace",
+      reason: "unsupported_format"
+    });
+    showToast("请选择图片文件。");
+    return;
+  }
   const url = URL.createObjectURL(file);
   const image = new Image();
   image.onload = () => {
     URL.revokeObjectURL(url);
+    trackEvent("image_uploaded", {
+      tool: "workspace",
+      ...getImageAnalyticsMeta(file, image.naturalWidth, image.naturalHeight)
+    });
     state.image = image;
     state.fileName = file.name.replace(/\.[^.]+$/, "") || "workspace-image";
     state.fileType = file.type;
@@ -357,6 +408,10 @@ function loadWorkspaceImage(file) {
   };
   image.onerror = () => {
     URL.revokeObjectURL(url);
+    trackEvent("upload_failed", {
+      tool: "workspace",
+      reason: "read_failed"
+    });
     showToast("图片读取失败，请换一张图片试试。");
   };
   image.src = url;
@@ -403,6 +458,8 @@ function buildWorkspaceFilterControls(defs, target) {
     number.addEventListener("focus", recordHistory);
     range.addEventListener("input", () => updateWorkspaceFilterControl(id, range.value));
     number.addEventListener("input", () => updateWorkspaceFilterControl(id, number.value));
+    range.addEventListener("change", () => trackWorkspaceFilterAdjustment(id));
+    number.addEventListener("change", () => trackWorkspaceFilterAdjustment(id));
     target.append(wrap);
   });
 }
@@ -416,6 +473,13 @@ function updateWorkspaceFilterControl(id, rawValue) {
   state.filterValues[id] = Number.isFinite(value) ? value : 0;
   syncWorkspaceFilterInputs(id);
   renderWorkspace();
+}
+
+function trackWorkspaceFilterAdjustment(id) {
+  trackToolEvent("filter", "adjusted", {
+    tool: "workspace",
+    control: id
+  });
 }
 
 function syncWorkspaceFilterInputs(id) {
@@ -432,6 +496,10 @@ function resetWorkspaceBasicControls() {
     state.filterValues[id] = 0;
     syncWorkspaceFilterInputs(id);
   });
+  trackToolEvent("filter", "adjusted", {
+    tool: "workspace",
+    control: "basic_reset"
+  });
   renderWorkspace();
 }
 
@@ -440,6 +508,10 @@ function resetWorkspaceAdvancedControls() {
   Object.values(workspaceAdvancedControlDefs).flat().forEach(([id]) => {
     state.filterValues[id] = 0;
     syncWorkspaceFilterInputs(id);
+  });
+  trackToolEvent("filter", "adjusted", {
+    tool: "workspace",
+    control: "advanced_reset"
   });
   renderWorkspace();
 }
@@ -542,6 +614,10 @@ function setWorkspaceCropMode(mode) {
 function setWorkspaceSizePreset(key) {
   state.cropMode = "size";
   state.activeSize = key;
+  trackToolEvent("crop", "preset_selected", {
+    tool: "workspace",
+    preset: key
+  });
   setWorkspaceCropMode("size");
   workspaceSizePanel.querySelectorAll("[data-size]").forEach((button) => {
     button.classList.toggle("active", button.dataset.size === key);
@@ -557,6 +633,10 @@ function setWorkspaceSizePreset(key) {
 function setWorkspaceRatioPreset(key) {
   state.cropMode = "ratio";
   state.activeRatio = key;
+  trackToolEvent("crop", "ratio_selected", {
+    tool: "workspace",
+    ratio: key
+  });
   setWorkspaceCropMode("ratio");
   workspaceRatioPanel.querySelectorAll("[data-ratio]").forEach((button) => {
     button.classList.toggle("active", button.dataset.ratio === key);
@@ -574,9 +654,10 @@ function updateCropPreview() {
 function applyCropPreview() {
   if (!state.cropPreview) return;
   recordHistory();
-  trackEvent("crop_applied", {
+  trackToolEvent("crop", "applied", {
     tool: "workspace",
     mode: state.cropMode,
+    preset: state.activeSize,
     ratio: state.activeRatio
   });
   state.cropRect = { ...state.cropPreview };
@@ -592,6 +673,9 @@ function applyCropPreview() {
 function resetCrop() {
   if (!state.image) return;
   recordHistory();
+  trackToolEvent("crop", "reset", {
+    tool: "workspace"
+  });
   state.cropRect = { x: 0, y: 0, width: state.image.naturalWidth, height: state.image.naturalHeight };
   state.cropPreview = null;
   state.cropOutputSize = null;
@@ -635,7 +719,7 @@ function fitRatioInRect(rect, ratio) {
 function applyFilterPreset(preset) {
   recordHistory();
   state.activeFilterPreset = preset;
-  trackEvent("filter_applied", {
+  trackToolEvent("filter", "preset_selected", {
     tool: "workspace",
     preset
   });
@@ -651,7 +735,7 @@ function addTextLayer(type) {
     return;
   }
   recordHistory();
-  trackEvent("title_added", {
+  trackToolEvent("title", "added", {
     tool: "workspace",
     text_type: type
   });
@@ -740,6 +824,11 @@ function toggleSelectedTextStyle(style) {
   if (!layer) return;
   recordHistory();
   layer[style] = !layer[style];
+  trackToolEvent("title", "style_changed", {
+    tool: "workspace",
+    control: style,
+    enabled: layer[style]
+  });
   updateTextPanel();
   renderWorkspace();
 }
@@ -755,6 +844,10 @@ function duplicateSelectedTextLayer() {
   if (!layer) return;
   recordHistory();
   const output = getOutputSize(false);
+  trackToolEvent("title", "style_changed", {
+    tool: "workspace",
+    control: "duplicate"
+  });
   const copy = {
     ...layer,
     id: `text-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -774,6 +867,11 @@ function toggleSelectedTextLock() {
   if (!layer) return;
   recordHistory();
   layer.locked = !layer.locked;
+  trackToolEvent("title", "style_changed", {
+    tool: "workspace",
+    control: "lock",
+    enabled: layer.locked
+  });
   updateTextPanel();
   renderWorkspace();
 }

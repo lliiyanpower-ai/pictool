@@ -26,9 +26,12 @@
 ```js
 trackEvent("tool_opened", { tool: "crop" });
 trackEvent("download_clicked", { tool: "workspace", format: "image/jpeg" });
+trackToolEvent("crop", "preset_selected", { preset: "wechat-main" });
 ```
 
-当前已接入百度统计，站点 ID 在 `analytics.js` 的 `baiduId` 中配置。页面访问会由百度统计脚本记录，工具打开、上传、裁剪、滤镜、标题添加、下载、压缩跳转等行为会通过统一的 `trackEvent()` 同步到百度统计事件。
+当前已接入百度统计，百度统计脚本直接写在各 HTML 页面中。页面访问会由百度统计脚本记录，工具打开、上传、裁剪、滤镜、标题添加、下载、压缩跳转等行为会通过统一的 `trackEvent()` 同步到百度统计事件。
+
+埋点只记录功能行为和分桶数据，不记录图片内容、文件名、标题正文等用户输入。图片大小、导出质量、图片尺寸会转换成区间后再上报。
 
 后续如果要增加自建后端统计，可以继续复用同一个入口，只需要配置 `endpoint`：
 
