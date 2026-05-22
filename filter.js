@@ -113,12 +113,12 @@ filterStage.addEventListener("dragleave", (event) => {
 filterStage.addEventListener("drop", (event) => {
   event.preventDefault();
   filterStage.classList.remove("dragging-file");
-  const file = [...event.dataTransfer.files].find((item) => item.type.startsWith("image/"));
+  const file = [...event.dataTransfer.files].find(isImageFile);
   if (file) loadFile(file);
 });
 
 document.addEventListener("paste", (event) => {
-  const file = [...event.clipboardData.files].find((item) => item.type.startsWith("image/"));
+  const file = [...event.clipboardData.files].find(isImageFile);
   if (file) loadFile(file);
 });
 
@@ -241,8 +241,8 @@ function handleDrag(event) {
 }
 
 function loadFile(file) {
-  if (!file.type.startsWith("image/")) {
-    showToast("请选择图片文件。");
+  if (!isImageFile(file)) {
+    showToast(getUnsupportedImageMessage());
     trackEvent("upload_failed", {
       tool: "filter",
       reason: "unsupported_format"
@@ -275,7 +275,7 @@ function loadFile(file) {
       tool: "filter",
       reason: "read_failed"
     });
-    showToast("图片读取失败，请换一张图片试试。");
+    showToast("图片读取失败。相机 HEIC/HEIF 或部分 TIFF 需要浏览器支持，必要时请先转为 JPG 或 PNG。");
   };
   image.src = sourceObjectUrl;
 }

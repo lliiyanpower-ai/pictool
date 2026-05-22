@@ -216,12 +216,12 @@ function bindWorkspaceEvents() {
   workspaceStage.addEventListener("drop", (event) => {
     event.preventDefault();
     workspaceStage.classList.remove("dragging-file");
-    const file = [...event.dataTransfer.files].find((item) => item.type.startsWith("image/"));
+    const file = [...event.dataTransfer.files].find(isImageFile);
     if (file) loadWorkspaceImage(file);
   });
 
   document.addEventListener("paste", (event) => {
-    const file = [...event.clipboardData.files].find((item) => item.type.startsWith("image/"));
+    const file = [...event.clipboardData.files].find(isImageFile);
     if (file) loadWorkspaceImage(file);
   });
 
@@ -398,12 +398,12 @@ function handleStageDrag(event) {
 }
 
 function loadWorkspaceImage(file) {
-  if (!file.type.startsWith("image/")) {
+  if (!isImageFile(file)) {
     trackEvent("upload_failed", {
       tool: "workspace",
       reason: "unsupported_format"
     });
-    showToast("请选择图片文件。");
+    showToast(getUnsupportedImageMessage());
     return;
   }
   const url = URL.createObjectURL(file);
@@ -442,7 +442,7 @@ function loadWorkspaceImage(file) {
       tool: "workspace",
       reason: "read_failed"
     });
-    showToast("图片读取失败，请换一张图片试试。");
+    showToast("图片读取失败。相机 HEIC/HEIF 或部分 TIFF 需要浏览器支持，必要时请先转为 JPG 或 PNG。");
   };
   image.src = url;
 }

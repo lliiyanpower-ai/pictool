@@ -6,7 +6,7 @@
     <title>图片压缩 - 图片工具箱</title>
     <meta
       name="description"
-      content="在线图片压缩工具，支持 JPG、PNG、WebP，提供压缩质量和最大宽高设置。图片在浏览器本地处理，不上传图片。"
+      content="在线图片压缩工具，支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片，提供压缩质量和最大宽高设置。图片在浏览器本地处理，不上传图片。"
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://pictool.com.cn/compress.html" />
@@ -38,7 +38,8 @@
         "description": "在线图片压缩工具，支持 JPG、PNG、WebP，自定义压缩质量和最大宽高，基础处理在浏览器本地完成。",
         "inLanguage": "zh-CN",
         "featureList": [
-          "支持 JPG、PNG、WebP",
+          "支持批量压缩",
+          "支持 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF",
           "支持压缩质量调节",
           "支持最大宽度和高度设置",
           "处理过程不上传图片"
@@ -58,18 +59,18 @@
         </div>
 
         <div class="compressor-grid">
-          <div class="upload-panel">
+          <div class="upload-panel" id="uploadPanel">
             <label class="dropzone" id="dropzone">
-              <input id="fileInput" type="file" accept="image/*" multiple />
+              <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/bmp,image/tiff,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.avif,.bmp,.dib,.tif,.tiff,.heic,.heif" multiple />
               <span class="upload-icon">
                 <svg viewBox="0 0 48 48" aria-hidden="true">
                   <path d="M24 34V10m0 0-8 8m8-8 8 8" />
                   <path d="M10 34v4h28v-4" />
                 </svg>
               </span>
-              <strong>拖拽、粘贴或选择图片</strong>
-              <small>支持 JPG、PNG、WebP、GIF 静态帧等常见图片</small>
-              <span class="choose-button">选择图片</span>
+              <strong id="dropzoneTitle">拖拽、粘贴或选择多张图片</strong>
+              <small id="dropzoneHint">支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片</small>
+              <span class="choose-button" id="chooseButton">选择图片（可多选）</span>
             </label>
 
             <div class="settings" aria-label="压缩设置">
@@ -109,7 +110,7 @@
                 </label>
               </div>
 
-              <button class="compress-button" id="compressButton" type="button" disabled>开始压缩</button>
+              <button class="compress-button" id="compressButton" type="button" disabled>压缩当前图片</button>
             </div>
           </div>
 
@@ -131,9 +132,9 @@
               </div>
               <div class="batch-strip" id="batchStrip" aria-label="批量图片缩略图"></div>
               <div class="batch-actions">
-                <button id="batchCompressButton" type="button">批量压缩</button>
+                <button id="batchCompressButton" type="button">压缩全部图片</button>
                 <button id="batchZipButton" type="button" disabled>打包下载 ZIP</button>
-                <button id="batchClearButton" type="button">清空</button>
+                <button id="batchClearButton" type="button">清空重选</button>
               </div>
             </div>
 
@@ -147,7 +148,7 @@
                 <strong id="compressedSize">--</strong>
               </div>
               <div>
-                <small>节省空间</small>
+                <small id="savedSizeLabel">节省空间</small>
                 <strong id="savedSize">--</strong>
               </div>
               <div>
@@ -177,6 +178,7 @@
       })();
     </script>
     <script src="analytics.js"></script>
+    <script src="image-support.js"></script>
     <script src="compress.js"></script>
   </body>
 </html>

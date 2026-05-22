@@ -1,5 +1,9 @@
 const fileInput = document.querySelector("#fileInput");
+const uploadPanel = document.querySelector("#uploadPanel");
 const dropzone = document.querySelector("#dropzone");
+const dropzoneTitle = document.querySelector("#dropzoneTitle");
+const dropzoneHint = document.querySelector("#dropzoneHint");
+const chooseButton = document.querySelector("#chooseButton");
 const qualityRange = document.querySelector("#qualityRange");
 const qualityValue = document.querySelector("#qualityValue");
 const formatSelect = document.querySelector("#formatSelect");
@@ -16,6 +20,7 @@ const compressedPreview = document.querySelector("#compressedPreview");
 const previewStage = document.querySelector("#previewStage");
 const originalSize = document.querySelector("#originalSize");
 const compressedSize = document.querySelector("#compressedSize");
+const savedSizeLabel = document.querySelector("#savedSizeLabel");
 const savedSize = document.querySelector("#savedSize");
 const imageSize = document.querySelector("#imageSize");
 const statusText = document.querySelector("#statusText");
@@ -30,6 +35,8 @@ const toast = document.querySelector("#toast");
 
 const BATCH_LIMIT = 30;
 const ZIP_SIZE_LIMIT = 200 * 1024 * 1024;
+const INITIAL_UPLOAD_TITLE = "拖拽、粘贴或选择多张图片";
+const INITIAL_UPLOAD_HINT = "支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片";
 
 let selectedFile = null;
 let sourceBitmap = null;
@@ -123,9 +130,9 @@ batchClearButton.addEventListener("click", resetAll);
 hydrateCropTransfer();
 
 async function loadFiles(files) {
-  const imageFiles = [...files].filter((item) => item.type.startsWith("image/"));
+  const imageFiles = [...files].filter(isImageFile);
   if (!imageFiles.length) {
-    showToast("请选择图片文件。");
+    showToast(getUnsupportedImageMessage());
     trackEvent("upload_failed", {
       tool: "compress",
       reason: "unsupported_format"
@@ -151,11 +158,13 @@ async function loadFiles(files) {
     error: "",
     uploadedTracked: false
   }));
+  uploadPanel.classList.add("has-files");
+  updateUploadPrompt();
   renderBatchPanel();
   await selectBatchItem(batchItems[0].id, { autoCompress: batchItems.length === 1 });
 
   if (batchItems.length > 1) {
-    statusText.textContent = `已载入 ${batchItems.length} 张图片，可点击缩略图预览或开始批量压缩。`;
+    statusText.textContent = `已载入 ${batchItems.length} 张图片，可点击缩略图预览，或压缩全部图片。`;
   }
 }
 
@@ -213,25 +222,28 @@ async function selectBatchItem(id, options = {}) {
     compressButton.disabled = isBatchProcessing;
     downloadName = buildDownloadName(item.file.name, formatSelect.value);
     if (item.compressedBlob) {
+      compressButton.textContent = "重新压缩当前图";
       compressedSize.textContent = formatBytes(item.compressedBlob.size);
-      savedSize.textContent = `${saved >= 0 ? "-" : "+"}${formatBytes(Math.abs(saved))}`;
+      updateSavedStat(item.file.size, item.compressedBlob.size);
       statusText.textContent = getCompletedStatusText(item.file.size, item.compressedBlob.size);
     } else if (item.status === "failed") {
+      compressButton.textContent = "重试压缩当前图";
       statusText.textContent = item.error || "这张图片压缩失败，可重新压缩。";
     } else {
+      compressButton.textContent = "压缩当前图片";
       statusText.textContent = `已载入：${formatDisplayFileName(item.file.name)}`;
     }
     renderBatchPanel();
     if (options.autoCompress) await compressImage();
   } catch (error) {
     item.status = "failed";
-    item.error = "图片读取失败，请换一张图片试试。";
+    item.error = "图片读取失败。相机 HEIC/HEIF 或部分 TIFF 需要浏览器支持，必要时请先转为 JPG 或 PNG。";
     renderBatchPanel();
     trackEvent("upload_failed", {
       tool: "compress",
       reason: "read_failed"
     });
-    showToast("图片读取失败，请换一张图片试试。");
+    showToast(item.error);
   }
 }
 
@@ -277,13 +289,13 @@ async function compressImage() {
     });
     showToast("当前浏览器不支持此导出格式。");
     compressButton.disabled = false;
-    compressButton.textContent = "开始压缩";
+    compressButton.textContent = "重试压缩当前图";
     return;
   }
 
   downloadButton.disabled = false;
   compressButton.disabled = false;
-  compressButton.textContent = "重新压缩";
+  compressButton.textContent = "重新压缩当前图";
   statusText.textContent = getCompletedStatusText(item.file.size, item.compressedBlob.size);
   trackToolEvent("compress", "success", {
     tool: "compress",
@@ -308,7 +320,7 @@ async function compressBatchItem(item) {
     compressedPreview.removeAttribute("src");
     previewStage.classList.remove("has-compressed");
     compressedSize.textContent = "--";
-    savedSize.textContent = "--";
+    resetSavedStat();
     downloadButton.disabled = true;
   }
   renderBatchPanel();
@@ -340,8 +352,10 @@ async function compressBatchItem(item) {
       compressedPreview.src = item.compressedUrl;
       previewStage.classList.add("has-compressed");
       compressedSize.textContent = formatBytes(blob.size);
-      savedSize.textContent = formatSavedBytes(item.file.size, blob.size);
+      updateSavedStat(item.file.size, blob.size);
       imageSize.textContent = `${width} × ${height}`;
+      downloadButton.disabled = false;
+      compressButton.textContent = "重新压缩当前图";
       downloadName = buildDownloadName(item.file.name, formatSelect.value);
     }
     return item;
@@ -429,6 +443,7 @@ async function compressBatch() {
   batchCompressButton.disabled = true;
   batchZipButton.disabled = true;
   compressButton.disabled = true;
+  batchCompressButton.textContent = "压缩中...";
   trackEvent("compress_batch_started", {
     tool: "compress",
     batch_count: batchItems.length,
@@ -454,6 +469,7 @@ async function compressBatch() {
   isBatchProcessing = false;
   compressButton.disabled = !selectedFile;
   batchCompressButton.disabled = false;
+  batchCompressButton.textContent = "重新压缩全部";
   batchZipButton.disabled = successCount === 0;
   batchProgressText.textContent = `完成 ${successCount} 张${failedCount ? `，失败 ${failedCount} 张` : ""}`;
   trackEvent("compress_batch_completed", {
@@ -507,7 +523,7 @@ async function downloadBatchZip() {
 }
 
 function renderBatchPanel() {
-  const hasBatch = batchItems.length > 0;
+  const hasBatch = batchItems.length > 1;
   batchPanel.classList.toggle("hidden", !hasBatch);
   if (!hasBatch) return;
 
@@ -523,6 +539,9 @@ function renderBatchPanel() {
   }
   batchZipButton.disabled = doneCount === 0 || isBatchProcessing;
   batchCompressButton.disabled = isBatchProcessing;
+  if (!isBatchProcessing) {
+    batchCompressButton.textContent = doneCount ? "重新压缩全部" : "压缩全部图片";
+  }
 
   batchStrip.innerHTML = batchItems.map((item, index) => {
     const statusLabel = getBatchStatusLabel(item);
@@ -551,28 +570,29 @@ function getBatchStatusLabel(item) {
 
 function invalidateCompressedResults() {
   if (!batchItems.length || isBatchProcessing) return;
-  let changed = false;
-  batchItems.forEach((item) => {
-    if (!item.compressedBlob && item.status !== "failed") return;
-    if (item.compressedUrl) URL.revokeObjectURL(item.compressedUrl);
-    item.compressedBlob = null;
-    item.compressedUrl = "";
-    item.outputWidth = 0;
-    item.outputHeight = 0;
-    item.status = "waiting";
-    item.error = "";
-    changed = true;
-  });
-  if (!changed) return;
-  compressedObjectUrl = "";
-  compressedPreview.removeAttribute("src");
-  previewStage.classList.remove("has-compressed");
-  compressedSize.textContent = "--";
-  savedSize.textContent = "--";
-  downloadButton.disabled = true;
-  batchZipButton.disabled = true;
-  statusText.textContent = "参数已更新，请重新压缩。";
+  const item = getSelectedBatchItem();
+  if (item?.compressedBlob) {
+    compressButton.textContent = "用新参数重压当前图";
+    statusText.textContent = "参数已更新，已完成结果会保留；重新压缩当前图或全部图片可应用新参数。";
+  } else {
+    statusText.textContent = "参数已更新，将用于后续压缩。";
+  }
   renderBatchPanel();
+}
+
+function updateUploadPrompt() {
+  const count = batchItems.length;
+  if (!count) {
+    uploadPanel.classList.remove("has-files");
+    dropzoneTitle.textContent = INITIAL_UPLOAD_TITLE;
+    dropzoneHint.textContent = INITIAL_UPLOAD_HINT;
+    chooseButton.textContent = "选择图片（可多选）";
+    return;
+  }
+  const totalOriginalSize = batchItems.reduce((sum, item) => sum + item.file.size, 0);
+  dropzoneTitle.textContent = `已选择 ${count} 张图片`;
+  dropzoneHint.textContent = `原图合计 ${formatBytes(totalOriginalSize)}，可重新选择或拖拽替换`;
+  chooseButton.textContent = "重新选择图片";
 }
 
 function startCompareDrag(event) {
@@ -768,9 +788,17 @@ function getSelectedBatchItem() {
   return batchItems.find((item) => item.id === selectedBatchId) || null;
 }
 
-function formatSavedBytes(originalBytes, outputBytes) {
+function updateSavedStat(originalBytes, outputBytes) {
   const saved = originalBytes - outputBytes;
-  return `${saved >= 0 ? "-" : "+"}${formatBytes(Math.abs(saved))}`;
+  savedSizeLabel.textContent = saved >= 0 ? "节省空间" : "体积增加";
+  savedSize.textContent = `${saved >= 0 ? "-" : "+"}${formatBytes(Math.abs(saved))}`;
+  savedSize.classList.toggle("is-negative", saved < 0);
+}
+
+function resetSavedStat() {
+  savedSizeLabel.textContent = "节省空间";
+  savedSize.textContent = "--";
+  savedSize.classList.remove("is-negative");
 }
 
 function getSavedPercent(originalBytes, outputBytes) {
@@ -784,7 +812,7 @@ function getCompletedStatusText(originalBytes, outputBytes) {
   const saved = originalBytes - outputBytes;
   return saved >= 0
     ? `压缩完成，体积减少 ${Math.round((saved / originalBytes) * 100)}%。`
-    : "已导出，新文件比原图更大，可降低质量或换 WebP。";
+    : "新文件比原图更大，这通常发生在原图已优化或质量设置过高时；建议降低质量、改 WebP，或保留原图。";
 }
 
 function formatDisplayFileName(name) {
@@ -842,11 +870,11 @@ function resetAll() {
   compressedPreview.removeAttribute("src");
   previewStage.classList.remove("has-image", "has-compressed", "dragging-compare");
   compressButton.disabled = true;
-  compressButton.textContent = "开始压缩";
+  compressButton.textContent = "压缩当前图片";
   downloadButton.disabled = true;
   originalSize.textContent = "--";
   compressedSize.textContent = "--";
-  savedSize.textContent = "--";
+  resetSavedStat();
   imageSize.textContent = "--";
   statusText.textContent = "等待上传图片";
   batchPanel.classList.add("hidden");
@@ -854,9 +882,10 @@ function resetAll() {
   batchSummaryText.textContent = "已选择 0 张图片";
   batchProgressText.textContent = "等待压缩";
   batchCompressButton.disabled = false;
-  batchCompressButton.textContent = "批量压缩";
+  batchCompressButton.textContent = "压缩全部图片";
   batchZipButton.disabled = true;
   batchZipButton.textContent = "打包下载 ZIP";
+  updateUploadPrompt();
 }
 
 function revokeUrls() {

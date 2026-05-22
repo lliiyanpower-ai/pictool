@@ -78,9 +78,16 @@
         <section class="workspace-tool-panel active" data-panel="upload">
           <h2>上传图片</h2>
           <label class="workspace-uploader">
-            <input id="workspaceFileInput" type="file" accept="image/*" />
-            <span>选择图片</span>
-            <small>支持拖拽、选择、粘贴图片</small>
+            <input id="workspaceFileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/bmp,image/tiff,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.avif,.bmp,.dib,.tif,.tiff,.heic,.heif" />
+            <span class="upload-icon">
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M24 34V10m0 0-8 8m8-8 8 8" />
+                <path d="M10 34v4h28v-4" />
+              </svg>
+            </span>
+            <strong>拖拽、粘贴或选择图片</strong>
+            <small>支持 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片</small>
+            <span class="choose-button">选择图片</span>
           </label>
           <div class="workspace-note">所有处理都在浏览器本地完成。</div>
         </section>
@@ -315,6 +322,7 @@
       })();
     </script>
     <script src="analytics.js"></script>
+    <script src="image-support.js"></script>
     <script src="workspace.js"></script>
   </body>
 </html>
