@@ -525,9 +525,17 @@ svg {
 }
 
 .dropzone {
+  position: relative;
   display: grid;
-  place-items: center;
-  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "icon"
+    "title"
+    "hint"
+    "action";
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
   min-height: clamp(168px, 28vh, 260px);
   padding: 22px;
   border: 2px dashed rgba(77, 94, 238, 0.24);
@@ -567,7 +575,6 @@ svg {
 
 .upload-icon {
   display: grid;
-  grid-area: icon;
   place-items: center;
   width: 64px;
   height: 64px;
@@ -577,28 +584,46 @@ svg {
   font-size: 42px;
 }
 
+.dropzone .upload-icon {
+  grid-area: icon;
+}
+
 .dropzone strong {
   grid-area: title;
-  margin-top: 18px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
   font-size: 20px;
+  line-height: 1.25;
   font-weight: 900;
+  text-wrap: balance;
 }
 
 .dropzone small {
   grid-area: hint;
-  margin-top: 8px;
+  max-width: min(760px, 100%);
+  margin: 0;
   color: var(--muted);
   font-weight: 700;
+  line-height: 1.45;
 }
 
 .choose-button {
-  grid-area: action;
-  margin-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  margin-top: 0;
   padding: 11px 22px;
   border-radius: 999px;
   color: #fff;
   background: linear-gradient(135deg, #7655f7, #2c66f4);
+  text-align: center;
   font-weight: 900;
+}
+
+.dropzone .choose-button {
+  grid-area: action;
 }
 
 .upload-panel.has-files .upload-icon {
@@ -1659,6 +1684,10 @@ input[type="range"] {
 .filter-panel {
   display: grid;
   gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(78, 96, 156, 0.12);
+  border-radius: 12px;
+  background: #fff;
 }
 
 .filter-panel-title {
@@ -1666,19 +1695,19 @@ input[type="range"] {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: 40px;
+  min-height: 32px;
   border: 0;
-  border-radius: 9px;
-  padding: 0 10px;
+  padding: 0;
   color: #11182e;
-  background: #f1f5ff;
-  font-size: 18px;
+  background: transparent;
+  font-size: 15px;
   font-weight: 900;
   text-align: left;
 }
 
 .filter-panel-title b {
-  font-size: 18px;
+  color: #657089;
+  font-size: 14px;
 }
 
 .filter-panel-body {
@@ -1698,32 +1727,31 @@ input[type="range"] {
 
 .filter-preset {
   min-width: 0;
-  border: 1px solid rgba(78, 96, 156, 0.14);
-  border-radius: 9px;
-  padding: 0;
-  background: #fff;
-  overflow: hidden;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 8px;
+  color: #43506a;
+  background: #edf2fb;
+  font-size: 13px;
   font-weight: 900;
 }
 
 .filter-preset span:first-child {
-  display: block;
-  height: 34px;
-  background: var(--preset-bg, linear-gradient(135deg, #eef3ff, #f8fbff));
+  display: none;
 }
 
 .filter-preset span:last-child {
   display: block;
-  padding: 6px 4px;
-  color: #4d5870;
-  font-size: 13px;
+  padding: 0;
 }
 
 .filter-preset.active,
 .filter-preset:hover,
 .filter-preset:focus-visible {
-  border-color: rgba(47, 97, 244, 0.46);
-  box-shadow: 0 0 0 3px rgba(47, 97, 244, 0.1);
+  color: #2f61f4;
+  background: #e2ecff;
+  box-shadow: none;
   outline: none;
 }
 
@@ -2637,7 +2665,9 @@ input[type="range"] {
 .workspace-uploader {
   position: relative;
   display: grid;
-  place-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-items: center;
   gap: 12px;
   min-height: 246px;
   padding: 22px 18px;
@@ -2670,15 +2700,19 @@ input[type="range"] {
 }
 
 .workspace-uploader strong {
+  max-width: 100%;
   font-size: 24px;
   line-height: 1.2;
   font-weight: 900;
+  text-wrap: balance;
+  word-break: keep-all;
 }
 
 .workspace-uploader small {
   max-width: 260px;
   font-size: 15px;
   line-height: 1.55;
+  text-wrap: balance;
 }
 
 .workspace-uploader .choose-button {
