@@ -129,6 +129,36 @@ const workspaceAdvancedControlDefs = {
   ]
 };
 
+const workspaceTitlePresets = {
+  title: {
+    text: "标题",
+    sizeRatio: 0.072,
+    weight: 900,
+    lineHeight: 1.12,
+    widthRatio: 0.48,
+    xRatio: 0.09,
+    yRatio: 0.23
+  },
+  subtitle: {
+    text: "副标题",
+    sizeRatio: 0.044,
+    weight: 800,
+    lineHeight: 1.22,
+    widthRatio: 0.46,
+    xRatio: 0.09,
+    yRatio: 0.42
+  },
+  body: {
+    text: "正文",
+    sizeRatio: 0.032,
+    weight: 600,
+    lineHeight: 1.45,
+    widthRatio: 0.52,
+    xRatio: 0.09,
+    yRatio: 0.58
+  }
+};
+
 const state = {
   image: null,
   fileName: "workspace-image",
@@ -740,29 +770,25 @@ function addTextLayer(type) {
     text_type: type
   });
   const output = getOutputSize(false);
-  const presets = {
-    title: { text: "标题", size: Math.round(output.width * 0.075), y: 0.22 },
-    subtitle: { text: "副标题", size: Math.round(output.width * 0.046), y: 0.38 },
-    body: { text: "正文", size: Math.round(output.width * 0.032), y: 0.54 }
-  };
-  const preset = presets[type] || presets.title;
+  const preset = workspaceTitlePresets[type] || workspaceTitlePresets.title;
+  const count = state.textLayers.filter((layer) => layer.kind === type).length;
   const layer = {
     id: `text-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    text: preset.text,
-    x: Math.round(output.width * 0.08),
-    y: Math.round(output.height * preset.y),
-    width: Math.round(output.width * 0.58),
-    size: Math.max(16, preset.size),
+    text: count ? `${preset.text}${count + 1}` : preset.text,
+    x: Math.round(output.width * preset.xRatio),
+    y: Math.round(output.height * (preset.yRatio + count * 0.04)),
+    width: Math.round(output.width * preset.widthRatio),
+    size: Math.max(18, Math.round(output.width * preset.sizeRatio)),
     color: "#ffffff",
     font: workspaceTextFont.value,
     align: "left",
     kind: type,
-    bold: true,
+    bold: preset.weight >= 800,
     italic: false,
     underline: false,
     strike: false,
     letterSpacing: 0,
-    lineHeight: 1.18,
+    lineHeight: preset.lineHeight,
     locked: false
   };
   state.textLayers.push(layer);

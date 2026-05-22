@@ -194,7 +194,7 @@ function addTextLayer(type) {
     type,
     label: preset.label,
     text: count ? `${preset.text}${count + 1}` : preset.text,
-    font: '"PingFang SC", "Microsoft YaHei", sans-serif',
+    font: textFontSelect.value,
     size: Math.max(18, Math.round(width * preset.sizeRatio)),
     lineHeight: preset.lineHeight,
     letterSpacing: 0,
