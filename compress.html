@@ -60,7 +60,7 @@
         <div class="compressor-grid">
           <div class="upload-panel">
             <label class="dropzone" id="dropzone">
-              <input id="fileInput" type="file" accept="image/*" />
+              <input id="fileInput" type="file" accept="image/*" multiple />
               <span class="upload-icon">
                 <svg viewBox="0 0 48 48" aria-hidden="true">
                   <path d="M24 34V10m0 0-8 8m8-8 8 8" />
@@ -122,6 +122,19 @@
               <img id="originalPreview" alt="原图预览" />
               <img id="compressedPreview" alt="压缩后预览" />
               <div class="compare-mask" id="compareMask"></div>
+            </div>
+
+            <div class="batch-panel hidden" id="batchPanel">
+              <div class="batch-summary">
+                <strong id="batchSummaryText">已选择 0 张图片</strong>
+                <span id="batchProgressText">等待压缩</span>
+              </div>
+              <div class="batch-strip" id="batchStrip" aria-label="批量图片缩略图"></div>
+              <div class="batch-actions">
+                <button id="batchCompressButton" type="button">批量压缩</button>
+                <button id="batchZipButton" type="button" disabled>打包下载 ZIP</button>
+                <button id="batchClearButton" type="button">清空</button>
+              </div>
             </div>
 
             <div class="stats-grid">
