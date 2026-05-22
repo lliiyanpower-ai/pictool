@@ -1,4 +1,5 @@
 const fileInput = document.querySelector("#fileInput");
+const compressor = document.querySelector("#compressor");
 const uploadPanel = document.querySelector("#uploadPanel");
 const dropzone = document.querySelector("#dropzone");
 const dropzoneTitle = document.querySelector("#dropzoneTitle");
@@ -158,7 +159,9 @@ async function loadFiles(files) {
     error: "",
     uploadedTracked: false
   }));
+  compressor.classList.add("has-file");
   uploadPanel.classList.add("has-files");
+  resetButton.disabled = false;
   updateUploadPrompt();
   renderBatchPanel();
   await selectBatchItem(batchItems[0].id, { autoCompress: batchItems.length === 1 });
@@ -869,9 +872,11 @@ function resetAll() {
   originalPreview.removeAttribute("src");
   compressedPreview.removeAttribute("src");
   previewStage.classList.remove("has-image", "has-compressed", "dragging-compare");
+  compressor.classList.remove("has-file");
   compressButton.disabled = true;
   compressButton.textContent = "压缩当前图片";
   downloadButton.disabled = true;
+  resetButton.disabled = true;
   originalSize.textContent = "--";
   compressedSize.textContent = "--";
   resetSavedStat();

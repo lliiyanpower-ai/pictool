@@ -505,7 +505,7 @@ svg {
   flex: 1;
   grid-template-columns: minmax(250px, 0.85fr) minmax(300px, 1.15fr);
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
   min-height: 0;
 }
 
@@ -742,6 +742,14 @@ input[type="range"] {
   box-shadow: 0 12px 28px rgba(47, 97, 244, 0.18);
 }
 
+.compress-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(84, 105, 165, 0.12);
+}
+
 .compress-button:disabled,
 .download-row button:disabled {
   cursor: not-allowed;
@@ -758,6 +766,7 @@ input[type="range"] {
 
 .preview-stage {
   position: relative;
+  flex: 1;
   display: grid;
   place-items: center;
   min-height: clamp(260px, 48vh, 420px);
@@ -1008,8 +1017,12 @@ input[type="range"] {
 
 .batch-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 0.55fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.batch-actions button:last-child {
+  grid-column: 1 / -1;
 }
 
 .batch-actions button {
@@ -1054,10 +1067,14 @@ input[type="range"] {
 }
 
 .stats-grid {
-  display: grid;
+  display: none;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-top: 16px;
+}
+
+.compressor.has-file .stats-grid {
+  display: grid;
 }
 
 .stats-grid div {
@@ -1091,7 +1108,7 @@ input[type="range"] {
   display: grid;
   grid-template-columns: 1fr 0.45fr;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 0;
 }
 
 .download-row button:first-child {
