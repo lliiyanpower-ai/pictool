@@ -1,3 +1,15 @@
+import {
+  CROP_RATIO_PRESETS as ratioPresets,
+  CROP_SIZE_PRESETS as sizePresets
+} from "./shared/presets.js";
+import {
+  canvasToBlob,
+  downloadUrl,
+  formatBytes,
+  getImageExtension,
+  sendBlobToCompress
+} from "./shared/export-utils.js";
+
 const cropFileInput = document.querySelector("#cropFileInput");
 const cropImage = document.querySelector("#cropImage");
 const cropStage = document.querySelector("#cropStage");
@@ -14,26 +26,6 @@ const cropStatusText = document.querySelector("#cropStatusText");
 const toast = document.querySelector("#toast");
 const sizePanel = document.querySelector("#sizePanel");
 const ratioPanel = document.querySelector("#ratioPanel");
-
-const sizePresets = {
-  custom: null,
-  "wechat-main": { width: 900, height: 383 },
-  "wechat-sub": { width: 200, height: 200 },
-  "web-2k": { width: 1920, height: 960 },
-  "web-4k": { width: 3840, height: 1920 }
-};
-
-const ratioPresets = {
-  free: null,
-  "1:1": 1,
-  "2:3": 2 / 3,
-  "3:2": 3 / 2,
-  "3:4": 3 / 4,
-  "4:3": 4 / 3,
-  "9:16": 9 / 16,
-  "16:9": 16 / 9,
-  "9:18": 9 / 18
-};
 
 let sourceImage = null;
 let sourceFileName = "image";
@@ -423,7 +415,7 @@ async function createOutputBlob() {
 
   const mimeType = cropFormatSelect.value;
   const quality = mimeType === "image/jpeg" ? 0.95 : undefined;
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, mimeType, quality));
+  const blob = await canvasToBlob(canvas, mimeType, quality);
   return { blob, target };
 }
 
@@ -467,12 +459,7 @@ async function downloadOutput() {
     format: cropFormatSelect.value
   });
 
-  const link = document.createElement("a");
-  link.href = outputObjectUrl;
-  link.download = `${sourceFileName}-crop.${getExtension()}`;
-  document.body.append(link);
-  link.click();
-  link.remove();
+  downloadUrl(outputObjectUrl, `${sourceFileName}-crop.${getExtension()}`);
 }
 
 function resetCrop() {
@@ -505,7 +492,7 @@ function restoreCropEditing() {
 }
 
 function getExtension() {
-  return cropFormatSelect.value === "image/png" ? "png" : "jpg";
+  return getImageExtension(cropFormatSelect.value);
 }
 
 async function sendToCompress() {
@@ -518,35 +505,12 @@ async function sendToCompress() {
     format: cropFormatSelect.value
   });
 
-  const dataUrl = await blobToDataUrl(outputBlob);
-  sessionStorage.setItem("crop-transfer-image", JSON.stringify({
-    dataUrl,
+  await sendBlobToCompress({
+    blob: outputBlob,
     name: `${sourceFileName}-crop.${getExtension()}`,
-    type: cropFormatSelect.value
-  }));
-  window.location.href = "compress.html?from=crop";
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
+    type: cropFormatSelect.value,
+    from: "crop"
   });
-}
-
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes)) return "--";
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["K", "M", "G"];
-  let size = bytes / 1024;
-  let unit = units.shift();
-  while (size >= 1024 && units.length) {
-    size /= 1024;
-    unit = units.shift();
-  }
-  return `${size >= 10 ? size.toFixed(1) : size.toFixed(2)}${unit}`;
 }
 
 function revokeUrls() {

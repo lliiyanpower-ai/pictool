@@ -1,3 +1,27 @@
+import {
+  CROP_RATIO_PRESETS as workspaceRatioPresets,
+  CROP_SIZE_PRESETS as workspaceSizePresets,
+  FILTER_ADVANCED_CONTROLS as workspaceAdvancedControlDefs,
+  FILTER_BASIC_CONTROLS as workspaceBasicControlDefs,
+  FILTER_PRESETS as workspaceFilterPresets,
+  TITLE_TEXT_PRESETS as workspaceTitlePresets
+} from "./shared/presets.js";
+import {
+  applyFilterPipelineToCanvas,
+  getMergedFilterValue,
+  makeFilterState,
+  mergeFilterValues
+} from "./shared/filter-engine.js";
+import {
+  canvasToBlob,
+  clampNumber,
+  downloadUrl,
+  escapeHtml,
+  formatBytes,
+  formatFileName,
+  getImageExtension
+} from "./shared/export-utils.js";
+
 const workspaceFileInput = document.querySelector("#workspaceFileInput");
 const workspaceStage = document.querySelector("#workspaceStage");
 const workspaceCanvas = document.querySelector("#workspaceCanvas");
@@ -55,109 +79,6 @@ const zoomInButton = document.querySelector("#zoomInButton");
 const zoomLabel = document.querySelector("#zoomLabel");
 const toast = document.querySelector("#toast");
 
-
-const workspaceSizePresets = {
-  "wechat-main": { width: 900, height: 383 },
-  "wechat-sub": { width: 200, height: 200 },
-  "web-2k": { width: 1920, height: 960 },
-  "web-4k": { width: 3840, height: 1920 }
-};
-
-const workspaceRatioPresets = {
-  free: null,
-  "1:1": 1,
-  "2:3": 2 / 3,
-  "3:2": 3 / 2,
-  "3:4": 3 / 4,
-  "4:3": 4 / 3,
-  "9:16": 9 / 16,
-  "16:9": 16 / 9,
-  "9:18": 9 / 18
-};
-
-const workspaceFilterPresets = [
-  { id: "none", name: "无滤镜", values: {} },
-  { id: "natural", name: "自然", values: { brightness: 5, contrast: 4, saturation: 8 } },
-  { id: "clear", name: "清透", values: { exposure: 8, clarity: 10, saturation: 6, shadows: 8 } },
-  { id: "warm", name: "暖阳", values: { temperature: 18, exposure: 4, highlights: 6 } },
-  { id: "cool", name: "冷调", values: { temperature: -18, contrast: 6, blue: 8 } },
-  { id: "film", name: "胶片", values: { contrast: 12, fade: 12, temperature: 8, grain: 8 } },
-  { id: "retro", name: "复古", values: { sepia: 28, fade: 16, contrast: -4, temperature: 12 } },
-  { id: "bw", name: "黑白", values: { grayscale: 100, contrast: 12, clarity: 8 } },
-  { id: "vivid", name: "鲜明", values: { saturation: 28, contrast: 12, clarity: 8 } },
-  { id: "sweet", name: "甜美", values: { brightness: 8, saturation: 12, tint: 10, highlights: 8 } },
-  { id: "food", name: "美食", values: { temperature: 16, saturation: 22, contrast: 8 } },
-  { id: "night", name: "夜景", values: { shadows: 18, highlights: -10, contrast: 14, blue: 10 } },
-  { id: "japan", name: "日系", values: { brightness: 10, contrast: -10, saturation: -8, fade: 10 } },
-  { id: "hk", name: "港风", values: { contrast: 18, saturation: 16, temperature: -5, shadows: -8 } },
-  { id: "forest", name: "森系", values: { green: 14, saturation: 8, contrast: -4, temperature: -6 } },
-  { id: "cream", name: "奶油", values: { brightness: 12, contrast: -8, saturation: -4, highlights: 10 } },
-  { id: "gray", name: "高级灰", values: { saturation: -26, contrast: 10, fade: 8 } },
-  { id: "blue", name: "蓝调", values: { blue: 18, temperature: -20, contrast: 8 } }
-];
-
-const workspaceBasicControlDefs = [
-  ["exposure", "智能补光", -100, 100],
-  ["brightness", "亮度", -100, 100],
-  ["contrast", "对比度", -100, 100],
-  ["saturation", "饱和度", -100, 100],
-  ["clarity", "清晰度", -100, 100],
-  ["sharpen", "锐化", 0, 100]
-];
-
-const workspaceAdvancedControlDefs = {
-  light: [
-    ["highlights", "高光", -100, 100],
-    ["shadows", "暗部", -100, 100],
-    ["fade", "褪色", 0, 100]
-  ],
-  color: [
-    ["temperature", "色温", -100, 100],
-    ["tint", "色调", -100, 100],
-    ["vibrance", "自然饱和", -100, 100]
-  ],
-  detail: [
-    ["grain", "颗粒", 0, 100],
-    ["vignette", "暗角", 0, 100],
-    ["sepia", "怀旧", 0, 100]
-  ],
-  hsl: [
-    ["red", "红色", -100, 100],
-    ["green", "绿色", -100, 100],
-    ["blue", "蓝色", -100, 100],
-    ["grayscale", "黑白", 0, 100]
-  ]
-};
-
-const workspaceTitlePresets = {
-  title: {
-    text: "标题",
-    sizeRatio: 0.072,
-    weight: 900,
-    lineHeight: 1.12,
-    widthRatio: 0.48,
-    xRatio: 0.09,
-    yRatio: 0.23
-  },
-  subtitle: {
-    text: "副标题",
-    sizeRatio: 0.044,
-    weight: 800,
-    lineHeight: 1.22,
-    widthRatio: 0.46,
-    xRatio: 0.09,
-    yRatio: 0.42
-  },
-  body: {
-    text: "正文",
-    sizeRatio: 0.032,
-    weight: 600,
-    lineHeight: 1.45,
-    widthRatio: 0.52,
-    xRatio: 0.09,
-    yRatio: 0.58
-  }
-};
 
 const state = {
   image: null,
@@ -454,9 +375,10 @@ function enableImageActions(enabled) {
 }
 
 function initWorkspaceFilterState() {
-  [...workspaceBasicControlDefs, ...Object.values(workspaceAdvancedControlDefs).flat()].forEach(([id]) => {
-    if (!Number.isFinite(state.filterValues[id])) state.filterValues[id] = 0;
-  });
+  state.filterValues = {
+    ...makeFilterState(workspaceBasicControlDefs, workspaceAdvancedControlDefs),
+    ...state.filterValues
+  };
 }
 
 function buildWorkspaceFilterPresetGrid() {
@@ -958,145 +880,17 @@ function renderToCanvas(canvas, forExport) {
 }
 
 function applyWorkspaceFiltersToCanvas(canvas) {
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  applyWorkspaceColorPipeline(imageData);
-  ctx.putImageData(imageData, 0, 0);
-  const sharpen = getWorkspaceFilterValue("sharpen") + getWorkspaceFilterValue("clarity") * 0.35;
-  if (sharpen > 0) applyWorkspaceSharpen(canvas, sharpen / 100);
-}
-
-function applyWorkspaceColorPipeline(imageData) {
-  const data = imageData.data;
-  const values = getMergedWorkspaceFilterValues();
-  const contrast = (259 * (values.contrast + 255)) / (255 * (259 - values.contrast));
-  const saturation = 1 + values.saturation / 100;
-  const vibrance = values.vibrance / 100;
-  const grayscale = values.grayscale / 100;
-  const sepia = values.sepia / 100;
-  const fade = values.fade / 100;
-  const vignette = values.vignette / 100;
-  const cx = imageData.width / 2;
-  const cy = imageData.height / 2;
-  const maxDist = Math.sqrt(cx * cx + cy * cy);
-
-  for (let i = 0; i < data.length; i += 4) {
-    let r = data[i];
-    let g = data[i + 1];
-    let b = data[i + 2];
-
-    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    const shadowMask = 1 - luminance / 255;
-    const highlightMask = luminance / 255;
-
-    r += values.exposure * 1.25 + values.brightness + values.highlights * highlightMask * 0.9 + values.shadows * shadowMask * 0.9;
-    g += values.exposure * 1.25 + values.brightness + values.highlights * highlightMask * 0.9 + values.shadows * shadowMask * 0.9;
-    b += values.exposure * 1.25 + values.brightness + values.highlights * highlightMask * 0.9 + values.shadows * shadowMask * 0.9;
-
-    r = contrast * (r - 128) + 128;
-    g = contrast * (g - 128) + 128;
-    b = contrast * (b - 128) + 128;
-
-    r += values.temperature * 0.75 + values.tint * 0.35 + values.red * 0.8;
-    g += values.green * 0.8 - Math.abs(values.tint) * 0.12;
-    b -= values.temperature * 0.75;
-    b += values.tint * 0.35 + values.blue * 0.8;
-
-    const avg = (r + g + b) / 3;
-    let satFactor = saturation;
-    if (vibrance) {
-      const max = Math.max(r, g, b);
-      satFactor += (1 - Math.abs(max - avg) / 128) * vibrance;
-    }
-    r = avg + (r - avg) * satFactor;
-    g = avg + (g - avg) * satFactor;
-    b = avg + (b - avg) * satFactor;
-
-    if (sepia) {
-      const sr = r * 0.393 + g * 0.769 + b * 0.189;
-      const sg = r * 0.349 + g * 0.686 + b * 0.168;
-      const sb = r * 0.272 + g * 0.534 + b * 0.131;
-      r = mixNumber(r, sr, sepia);
-      g = mixNumber(g, sg, sepia);
-      b = mixNumber(b, sb, sepia);
-    }
-
-    if (grayscale) {
-      r = mixNumber(r, avg, grayscale);
-      g = mixNumber(g, avg, grayscale);
-      b = mixNumber(b, avg, grayscale);
-    }
-
-    if (fade) {
-      r = mixNumber(r, 128, fade * 0.35);
-      g = mixNumber(g, 128, fade * 0.35);
-      b = mixNumber(b, 128, fade * 0.35);
-    }
-
-    if (vignette) {
-      const x = (i / 4) % imageData.width;
-      const y = Math.floor(i / 4 / imageData.width);
-      const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / maxDist;
-      const v = 1 - Math.max(0, dist - 0.36) * vignette * 1.4;
-      r *= v;
-      g *= v;
-      b *= v;
-    }
-
-    if (values.grain) {
-      const noise = ((Math.sin(i * 12.9898) * 43758.5453) % 1) * values.grain * 0.8;
-      r += noise;
-      g += noise;
-      b += noise;
-    }
-
-    data[i] = clampChannel(r);
-    data[i + 1] = clampChannel(g);
-    data[i + 2] = clampChannel(b);
-  }
-}
-
-function applyWorkspaceSharpen(canvas, amount) {
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const out = ctx.createImageData(src);
-  const width = canvas.width;
-  const source = src.data;
-  const target = out.data;
-  target.set(source);
-  const center = 1 + amount * 4;
-  const edge = -amount;
-
-  for (let y = 1; y < canvas.height - 1; y++) {
-    for (let x = 1; x < canvas.width - 1; x++) {
-      const idx = (y * width + x) * 4;
-      for (let c = 0; c < 3; c++) {
-        target[idx + c] = clampChannel(
-          source[idx + c] * center +
-          source[idx - 4 + c] * edge +
-          source[idx + 4 + c] * edge +
-          source[idx - width * 4 + c] * edge +
-          source[idx + width * 4 + c] * edge
-        );
-      }
-      target[idx + 3] = source[idx + 3];
-    }
-  }
-  ctx.putImageData(out, 0, 0);
+  applyFilterPipelineToCanvas(canvas, getMergedWorkspaceFilterValues());
 }
 
 function getMergedWorkspaceFilterValues() {
   const preset = workspaceFilterPresets.find((item) => item.id === state.activeFilterPreset) || workspaceFilterPresets[0];
-  const merged = {};
-  Object.keys(state.filterValues).forEach((key) => {
-    merged[key] = state.filterValues[key] + (preset.values[key] || 0);
-  });
-  return merged;
+  return mergeFilterValues(state.filterValues, preset);
 }
 
 function getWorkspaceFilterValue(id) {
   const preset = workspaceFilterPresets.find((item) => item.id === state.activeFilterPreset) || workspaceFilterPresets[0];
-  return state.filterValues[id] + (preset.values[id] || 0);
+  return getMergedFilterValue(state.filterValues, preset, id);
 }
 
 function drawWorkspaceText(ctx, layer, scaleX, scaleY, selected) {
@@ -1329,7 +1123,7 @@ async function makeOutputBlob() {
   renderToCanvas(canvas, true);
   const type = workspaceFormat.value;
   const quality = type === "image/png" ? undefined : Number(qualityRange.value) / 100;
-  return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+  return canvasToBlob(canvas, type, quality);
 }
 
 async function downloadWorkspaceImage() {
@@ -1343,12 +1137,7 @@ async function downloadWorkspaceImage() {
     format: workspaceFormat.value,
     text_layers: state.textLayers.length
   });
-  const link = document.createElement("a");
-  link.href = state.outputUrl;
-  link.download = `${state.fileName}-workspace.${getExtension()}`;
-  document.body.append(link);
-  link.click();
-  link.remove();
+  downloadUrl(state.outputUrl, `${state.fileName}-workspace.${getExtension()}`);
 }
 
 function clearOutputCache(invalidate = true) {
@@ -1360,9 +1149,7 @@ function clearOutputCache(invalidate = true) {
 }
 
 function getExtension() {
-  if (workspaceFormat.value === "image/png") return "png";
-  if (workspaceFormat.value === "image/webp") return "webp";
-  return "jpg";
+  return getImageExtension(workspaceFormat.value);
 }
 
 function startCanvasDrag(event) {
@@ -1511,50 +1298,6 @@ function wrapCanvasText(ctx, text, maxWidth, font, letterSpacing = 0) {
     if (line) lines.push(line);
   });
   return lines.length ? lines : [""];
-}
-
-function clampNumber(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function mixNumber(a, b, amount) {
-  return a + (b - a) * amount;
-}
-
-function clampChannel(value) {
-  return Math.max(0, Math.min(255, Math.round(value)));
-}
-
-function formatFileName(name) {
-  const value = String(name || "");
-  if (value.length <= 28) return value;
-  const dot = value.lastIndexOf(".");
-  const ext = dot > 0 ? value.slice(dot) : "";
-  const base = dot > 0 ? value.slice(0, dot) : value;
-  return `${base.slice(0, 12)}...${base.slice(-6)}${ext}`;
-}
-
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes)) return "--";
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["K", "M", "G"];
-  let size = bytes / 1024;
-  let unit = units.shift();
-  while (size >= 1024 && units.length) {
-    size /= 1024;
-    unit = units.shift();
-  }
-  return `${size >= 10 ? size.toFixed(1) : size.toFixed(2)}${unit}`;
-}
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[char]));
 }
 
 function showToast(message) {

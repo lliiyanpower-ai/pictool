@@ -1,3 +1,16 @@
+import {
+  TITLE_TEXT_PRESETS as textPresets
+} from "./shared/presets.js";
+import {
+  canvasToBlob,
+  downloadUrl,
+  formatBytes,
+  formatFileName,
+  getImageExtension,
+  readNumber,
+  sendBlobToCompress
+} from "./shared/export-utils.js";
+
 const titleImageInput = document.querySelector("#titleImageInput");
 const titleStage = document.querySelector("#titleStage");
 const titleCanvas = document.querySelector("#titleCanvas");
@@ -23,39 +36,6 @@ const titleDownloadButton = document.querySelector("#titleDownloadButton");
 const titleToCompressButton = document.querySelector("#titleToCompressButton");
 const titleStatusText = document.querySelector("#titleStatusText");
 const toast = document.querySelector("#toast");
-
-const textPresets = {
-  title: {
-    label: "标题",
-    text: "标题",
-    sizeRatio: 0.072,
-    weight: 900,
-    lineHeight: 1.12,
-    widthRatio: 0.48,
-    xRatio: 0.09,
-    yRatio: 0.23
-  },
-  subtitle: {
-    label: "副标题",
-    text: "副标题",
-    sizeRatio: 0.044,
-    weight: 800,
-    lineHeight: 1.22,
-    widthRatio: 0.46,
-    xRatio: 0.09,
-    yRatio: 0.42
-  },
-  body: {
-    label: "正文",
-    text: "正文",
-    sizeRatio: 0.032,
-    weight: 600,
-    lineHeight: 1.45,
-    widthRatio: 0.52,
-    xRatio: 0.09,
-    yRatio: 0.58
-  }
-};
 
 let sourceImage = null;
 let sourceFileName = "title-image";
@@ -335,7 +315,7 @@ function loadImage(file) {
     titleStage.classList.add("has-image");
     titleDownloadButton.disabled = false;
     titleToCompressButton.disabled = false;
-    titleStatusText.textContent = `已载入：${formatDisplayFileName(file.name)}`;
+    titleStatusText.textContent = `已载入：${formatFileName(file.name, { max: 24, head: 10, tail: 6 })}`;
     renderPreview();
   };
   image.onerror = () => {
@@ -694,7 +674,7 @@ async function makeOutputBlob() {
   renderCanvas(outputCanvas, false);
   const mimeType = titleFormatSelect.value;
   const quality = mimeType === "image/jpeg" ? 0.94 : undefined;
-  return new Promise((resolve) => outputCanvas.toBlob(resolve, mimeType, quality));
+  return canvasToBlob(outputCanvas, mimeType, quality);
 }
 
 async function updateOutputEstimate() {
@@ -733,12 +713,7 @@ async function downloadTitle() {
     format: titleFormatSelect.value,
     text_layers: textLayers.length
   });
-  const link = document.createElement("a");
-  link.href = outputObjectUrl;
-  link.download = `${sourceFileName}-title.${getExtension()}`;
-  document.body.append(link);
-  link.click();
-  link.remove();
+  downloadUrl(outputObjectUrl, `${sourceFileName}-title.${getExtension()}`);
 }
 
 async function sendToCompress() {
@@ -749,13 +724,12 @@ async function sendToCompress() {
     format: titleFormatSelect.value,
     text_layers: textLayers.length
   });
-  const dataUrl = await blobToDataUrl(blob);
-  sessionStorage.setItem("crop-transfer-image", JSON.stringify({
-    dataUrl,
+  await sendBlobToCompress({
+    blob,
     name: `${sourceFileName}-title.${getExtension()}`,
-    type: titleFormatSelect.value
-  }));
-  window.location.href = "compress.html?from=title";
+    type: titleFormatSelect.value,
+    from: "title"
+  });
 }
 
 function clearOutputCache(invalidateEstimate = true) {
@@ -767,12 +741,7 @@ function clearOutputCache(invalidateEstimate = true) {
 }
 
 function getExtension() {
-  return titleFormatSelect.value === "image/png" ? "png" : "jpg";
-}
-
-function readNumber(input, fallback) {
-  const value = Number(input.value);
-  return Number.isFinite(value) ? value : fallback;
+  return getImageExtension(titleFormatSelect.value);
 }
 
 function hexToRgba(hex, alpha) {
@@ -788,38 +757,6 @@ function parseHexColor(hex) {
     g: parseInt(full.slice(2, 4), 16),
     b: parseInt(full.slice(4, 6), 16)
   };
-}
-
-
-function formatDisplayFileName(name) {
-  const value = String(name || "");
-  if (value.length <= 24) return value;
-  const dotIndex = value.lastIndexOf(".");
-  const extension = dotIndex > 0 ? value.slice(dotIndex) : "";
-  const base = dotIndex > 0 ? value.slice(0, dotIndex) : value;
-  return `${base.slice(0, 10)}...${base.slice(-6)}${extension}`;
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes)) return "--";
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["K", "M", "G"];
-  let size = bytes / 1024;
-  let unit = units.shift();
-  while (size >= 1024 && units.length) {
-    size /= 1024;
-    unit = units.shift();
-  }
-  return `${size >= 10 ? size.toFixed(1) : size.toFixed(2)}${unit}`;
 }
 
 function showToast(message) {
