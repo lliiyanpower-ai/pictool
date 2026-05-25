@@ -7,6 +7,12 @@
 1. `PROJECT_BRIEF.md`
 2. `DESIGN_RULES.md`
 3. `TASKS.md`
+4. `PRODUCT.md`
+5. `PRIVACY.md`
+
+发布前必须参考：
+
+- `RELEASE_CHECKLIST.md`
 
 ## 建议下一步
 

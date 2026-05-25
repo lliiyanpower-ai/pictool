@@ -50,5 +50,9 @@ configureTracking({
 - `PROJECT_BRIEF.md`
 - `DESIGN_RULES.md`
 - `TASKS.md`
+- `PRODUCT.md`
+- `PRIVACY.md`
 
 工作台中的裁剪、滤镜、标题、导出配置项必须和四个独立页面保持同步。
+
+发布前请参考 `RELEASE_CHECKLIST.md`。
