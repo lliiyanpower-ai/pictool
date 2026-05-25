@@ -12,8 +12,6 @@ const maxWidthInput = document.querySelector("#maxWidthInput");
 const maxHeightInput = document.querySelector("#maxHeightInput");
 const keepSizeCheck = document.querySelector("#keepSizeCheck");
 const aspectLockCheck = document.querySelector("#aspectLockCheck");
-const compressButton = document.querySelector("#compressButton");
-const downloadButton = document.querySelector("#downloadButton");
 const resetButton = document.querySelector("#resetButton");
 const compareMask = document.querySelector("#compareMask");
 const originalPreview = document.querySelector("#originalPreview");
@@ -31,7 +29,6 @@ const batchProgressText = document.querySelector("#batchProgressText");
 const batchStrip = document.querySelector("#batchStrip");
 const batchCompressButton = document.querySelector("#batchCompressButton");
 const batchZipButton = document.querySelector("#batchZipButton");
-const batchClearButton = document.querySelector("#batchClearButton");
 const toast = document.querySelector("#toast");
 
 const BATCH_LIMIT = 30;
@@ -43,7 +40,6 @@ let selectedFile = null;
 let sourceBitmap = null;
 let originalObjectUrl = "";
 let compressedObjectUrl = "";
-let downloadName = "compressed-image.jpg";
 let compareValue = 50;
 let syncingDimensions = false;
 let batchItems = [];
@@ -122,12 +118,10 @@ previewStage.addEventListener("pointercancel", stopCompareDrag);
 previewStage.addEventListener("keydown", moveCompareWithKeyboard);
 previewStage.tabIndex = 0;
 
-compressButton.addEventListener("click", compressImage);
-downloadButton.addEventListener("click", downloadCompressed);
 resetButton.addEventListener("click", resetAll);
 batchCompressButton.addEventListener("click", compressBatch);
 batchZipButton.addEventListener("click", downloadBatchZip);
-batchClearButton.addEventListener("click", resetAll);
+batchStrip.addEventListener("click", handleBatchStripClick);
 hydrateCropTransfer();
 
 async function loadFiles(files) {
@@ -153,6 +147,7 @@ async function loadFiles(files) {
     sourceUrl: URL.createObjectURL(file),
     compressedBlob: null,
     compressedUrl: "",
+    outputType: "",
     outputWidth: 0,
     outputHeight: 0,
     status: "waiting",
@@ -162,6 +157,7 @@ async function loadFiles(files) {
   compressor.classList.add("has-file");
   uploadPanel.classList.add("has-files");
   resetButton.disabled = false;
+  updatePrimaryActionState();
   updateUploadPrompt();
   renderBatchPanel();
   await selectBatchItem(batchItems[0].id, { autoCompress: batchItems.length === 1 });
@@ -193,15 +189,14 @@ async function selectBatchItem(id, options = {}) {
     compressedObjectUrl = item.compressedUrl;
     compressedPreview.src = item.compressedUrl;
     previewStage.classList.add("has-compressed");
-    downloadButton.disabled = false;
   } else {
     compressedObjectUrl = "";
     compressedPreview.removeAttribute("src");
     previewStage.classList.remove("has-compressed");
-    downloadButton.disabled = true;
   }
   previewStage.classList.add("has-image");
   previewStage.classList.remove("dragging-compare");
+  resetSavedStat();
   updateCompare(compareValue);
 
   try {
@@ -220,24 +215,19 @@ async function selectBatchItem(id, options = {}) {
     }
     const width = item.outputWidth || sourceBitmap.width;
     const height = item.outputHeight || sourceBitmap.height;
-    const saved = item.compressedBlob ? item.file.size - item.compressedBlob.size : null;
     imageSize.textContent = `${width} × ${height}`;
-    compressButton.disabled = isBatchProcessing;
-    downloadName = buildDownloadName(item.file.name, formatSelect.value);
+    updateDimensionPlaceholders(sourceBitmap.width, sourceBitmap.height);
     if (item.compressedBlob) {
-      compressButton.textContent = "重新压缩当前图";
       compressedSize.textContent = formatBytes(item.compressedBlob.size);
       updateSavedStat(item.file.size, item.compressedBlob.size);
       statusText.textContent = getCompletedStatusText(item.file.size, item.compressedBlob.size);
     } else if (item.status === "failed") {
-      compressButton.textContent = "重试压缩当前图";
       statusText.textContent = item.error || "这张图片压缩失败，可重新压缩。";
     } else {
-      compressButton.textContent = "压缩当前图片";
       statusText.textContent = `已载入：${formatDisplayFileName(item.file.name)}`;
     }
     renderBatchPanel();
-    if (options.autoCompress) await compressImage();
+    if (options.autoCompress) await compressImage(item.id);
   } catch (error) {
     item.status = "failed";
     item.error = "图片读取失败。相机 HEIC/HEIF 或部分 TIFF 需要浏览器支持，必要时请先转为 JPG 或 PNG。";
@@ -268,9 +258,11 @@ async function hydrateCropTransfer() {
   }
 }
 
-async function compressImage() {
-  const item = getSelectedBatchItem();
-  if (!item) return;
+async function compressImage(id = selectedBatchId) {
+  const item = batchItems.find((entry) => entry.id === id);
+  if (!item || isBatchProcessing || item.status === "processing") return;
+  if (item.id !== selectedBatchId) await selectBatchItem(item.id);
+
   trackToolEvent("compress", "started", {
     tool: "compress",
     format: formatSelect.value,
@@ -279,9 +271,9 @@ async function compressImage() {
     aspect_lock: aspectLockCheck.checked
   });
 
-  compressButton.disabled = true;
-  compressButton.textContent = "压缩中...";
   statusText.textContent = "正在压缩图片...";
+  batchProgressText.textContent = `${formatDisplayFileName(item.file.name)} 压缩中`;
+  renderBatchPanel();
 
   const result = await compressBatchItem(item);
   if (!result?.compressedBlob) {
@@ -291,14 +283,10 @@ async function compressImage() {
       format: formatSelect.value
     });
     showToast("当前浏览器不支持此导出格式。");
-    compressButton.disabled = false;
-    compressButton.textContent = "重试压缩当前图";
+    statusText.textContent = item.error || "这张图片压缩失败，可重新压缩。";
     return;
   }
 
-  downloadButton.disabled = false;
-  compressButton.disabled = false;
-  compressButton.textContent = "重新压缩当前图";
   statusText.textContent = getCompletedStatusText(item.file.size, item.compressedBlob.size);
   trackToolEvent("compress", "success", {
     tool: "compress",
@@ -316,6 +304,7 @@ async function compressBatchItem(item) {
   if (item.compressedUrl) URL.revokeObjectURL(item.compressedUrl);
   item.compressedBlob = null;
   item.compressedUrl = "";
+  item.outputType = "";
   item.outputWidth = 0;
   item.outputHeight = 0;
   if (item.id === selectedBatchId) {
@@ -324,7 +313,6 @@ async function compressBatchItem(item) {
     previewStage.classList.remove("has-compressed");
     compressedSize.textContent = "--";
     resetSavedStat();
-    downloadButton.disabled = true;
   }
   renderBatchPanel();
 
@@ -346,6 +334,7 @@ async function compressBatchItem(item) {
 
     item.compressedBlob = blob;
     item.compressedUrl = URL.createObjectURL(blob);
+    item.outputType = formatSelect.value;
     item.outputWidth = width;
     item.outputHeight = height;
     item.status = "done";
@@ -357,9 +346,6 @@ async function compressBatchItem(item) {
       compressedSize.textContent = formatBytes(blob.size);
       updateSavedStat(item.file.size, blob.size);
       imageSize.textContent = `${width} × ${height}`;
-      downloadButton.disabled = false;
-      compressButton.textContent = "重新压缩当前图";
-      downloadName = buildDownloadName(item.file.name, formatSelect.value);
     }
     return item;
   } catch (error) {
@@ -424,17 +410,21 @@ function canvasToBlob(canvas, type, quality) {
   });
 }
 
-function downloadCompressed() {
-  const item = getSelectedBatchItem();
+function downloadCompressed(id = selectedBatchId) {
+  const item = batchItems.find((entry) => entry.id === id);
   if (!item?.compressedUrl) return;
+  downloadCompressedItem(item);
+}
+
+function downloadCompressedItem(item) {
   trackEvent("download_clicked", {
     tool: "compress",
-    format: formatSelect.value,
+    format: item.outputType || formatSelect.value,
     quality: Number(qualityRange.value)
   });
   const link = document.createElement("a");
   link.href = item.compressedUrl;
-  link.download = buildDownloadName(item.file.name, formatSelect.value);
+  link.download = buildDownloadName(item.file.name, item.outputType || formatSelect.value);
   document.body.append(link);
   link.click();
   link.remove();
@@ -445,7 +435,6 @@ async function compressBatch() {
   isBatchProcessing = true;
   batchCompressButton.disabled = true;
   batchZipButton.disabled = true;
-  compressButton.disabled = true;
   batchCompressButton.textContent = "压缩中...";
   trackEvent("compress_batch_started", {
     tool: "compress",
@@ -470,10 +459,7 @@ async function compressBatch() {
   }
 
   isBatchProcessing = false;
-  compressButton.disabled = !selectedFile;
-  batchCompressButton.disabled = false;
-  batchCompressButton.textContent = "重新压缩全部";
-  batchZipButton.disabled = successCount === 0;
+  renderBatchPanel();
   batchProgressText.textContent = `完成 ${successCount} 张${failedCount ? `，失败 ${failedCount} 张` : ""}`;
   trackEvent("compress_batch_completed", {
     tool: "compress",
@@ -489,6 +475,11 @@ async function downloadBatchZip() {
   const completedItems = batchItems.filter((item) => item.compressedBlob);
   if (!completedItems.length) {
     showToast("请先完成批量压缩。");
+    return;
+  }
+  if (completedItems.length === 1) {
+    downloadCompressedItem(completedItems[0]);
+    batchProgressText.textContent = "已下载 1 张";
     return;
   }
   const totalSize = completedItems.reduce((sum, item) => sum + item.compressedBlob.size, 0);
@@ -521,19 +512,21 @@ async function downloadBatchZip() {
     batchProgressText.textContent = "打包失败";
   } finally {
     batchZipButton.disabled = false;
-    batchZipButton.textContent = "打包下载 ZIP";
+    batchZipButton.textContent = batchItems.length === 1 ? "下载压缩图片" : "打包下载 ZIP";
   }
 }
 
 function renderBatchPanel() {
-  const hasBatch = batchItems.length > 1;
-  batchPanel.classList.toggle("hidden", !hasBatch);
-  if (!hasBatch) return;
+  const hasItems = batchItems.length > 0;
+  batchPanel.classList.toggle("hidden", !hasItems || batchItems.length === 1);
+  updatePrimaryActionState();
+  if (!hasItems) return;
 
   const doneCount = batchItems.filter((item) => item.status === "done").length;
   const failedCount = batchItems.filter((item) => item.status === "failed").length;
   const totalOriginalSize = batchItems.reduce((sum, item) => sum + item.file.size, 0);
   const totalCompressedSize = batchItems.reduce((sum, item) => sum + (item.compressedBlob?.size || 0), 0);
+  const isSingle = batchItems.length === 1;
   batchSummaryText.textContent = `已选择 ${batchItems.length} 张 · 原图 ${formatBytes(totalOriginalSize)}`;
   if (!isBatchProcessing) {
     batchProgressText.textContent = doneCount
@@ -542,26 +535,77 @@ function renderBatchPanel() {
   }
   batchZipButton.disabled = doneCount === 0 || isBatchProcessing;
   batchCompressButton.disabled = isBatchProcessing;
+  batchZipButton.textContent = isSingle ? "下载压缩图片" : "打包下载 ZIP";
   if (!isBatchProcessing) {
-    batchCompressButton.textContent = doneCount ? "重新压缩全部" : "压缩全部图片";
+    batchCompressButton.textContent = doneCount
+      ? (isSingle ? "重新压缩图片" : "重新压缩全部")
+      : (isSingle ? "压缩图片" : "压缩全部图片");
   }
 
   batchStrip.innerHTML = batchItems.map((item, index) => {
     const statusLabel = getBatchStatusLabel(item);
     const ratio = item.compressedBlob ? getSavedPercent(item.file.size, item.compressedBlob.size) : "";
+    const resultLabel = item.compressedBlob
+      ? `压后 ${formatBytes(item.compressedBlob.size)} · ${ratio}`
+      : (item.error || "等待统一设置");
+    const actionLabel = item.status === "processing"
+      ? "处理中"
+      : item.compressedBlob
+        ? "重压"
+        : item.status === "failed" ? "重试" : "压缩";
+    const disabledAction = isBatchProcessing || item.status === "processing" ? " disabled" : "";
+    const disabledDownload = !item.compressedBlob || isBatchProcessing ? " disabled" : "";
     return `
-      <button class="batch-thumb${item.id === selectedBatchId ? " active" : ""}" type="button" data-batch-id="${item.id}" title="${escapeHtml(item.file.name)}">
-        <img src="${item.sourceUrl}" alt="" />
-        <span class="batch-index">${index + 1}</span>
-        <span class="batch-state ${item.status}">${statusLabel}</span>
-        <strong>${escapeHtml(formatDisplayFileName(item.file.name))}</strong>
-        <small>${ratio || formatBytes(item.file.size)}</small>
-      </button>
+      <article class="batch-thumb${item.id === selectedBatchId ? " active" : ""}" title="${escapeHtml(item.file.name)}">
+        <button class="batch-preview" type="button" data-select-batch-id="${item.id}" aria-label="预览 ${escapeHtml(item.file.name)}">
+          <img src="${item.sourceUrl}" alt="" />
+          <span class="batch-index">${index + 1}</span>
+          <span class="batch-state ${item.status}">${statusLabel}</span>
+          <strong>${escapeHtml(formatDisplayFileName(item.file.name))}</strong>
+          <small>原图 ${formatBytes(item.file.size)}</small>
+          <small>${escapeHtml(resultLabel)}</small>
+        </button>
+        <div class="batch-thumb-actions">
+          <button type="button" data-compress-batch-id="${item.id}"${disabledAction}>${actionLabel}</button>
+          <button type="button" data-download-batch-id="${item.id}"${disabledDownload}>下载</button>
+        </div>
+      </article>
     `;
   }).join("");
-  batchStrip.querySelectorAll("[data-batch-id]").forEach((button) => {
-    button.addEventListener("click", () => selectBatchItem(button.dataset.batchId));
-  });
+}
+
+function updatePrimaryActionState() {
+  const hasItems = batchItems.length > 0;
+  const isSingle = batchItems.length === 1;
+  const doneCount = batchItems.filter((item) => item.status === "done").length;
+  batchCompressButton.disabled = !hasItems || isBatchProcessing;
+  if (isBatchProcessing) return;
+  batchCompressButton.textContent = !hasItems
+    ? "压缩图片"
+    : doneCount
+      ? (isSingle ? "重新压缩图片" : "重新压缩全部")
+      : (isSingle ? "压缩图片" : "压缩全部图片");
+  batchZipButton.textContent = isSingle ? "下载压缩图片" : "打包下载 ZIP";
+  batchZipButton.disabled = doneCount === 0 || isBatchProcessing;
+}
+
+function handleBatchStripClick(event) {
+  const selectButton = event.target.closest("[data-select-batch-id]");
+  if (selectButton && batchStrip.contains(selectButton)) {
+    selectBatchItem(selectButton.dataset.selectBatchId);
+    return;
+  }
+
+  const compressItemButton = event.target.closest("[data-compress-batch-id]");
+  if (compressItemButton && batchStrip.contains(compressItemButton)) {
+    compressImage(compressItemButton.dataset.compressBatchId);
+    return;
+  }
+
+  const downloadItemButton = event.target.closest("[data-download-batch-id]");
+  if (downloadItemButton && batchStrip.contains(downloadItemButton)) {
+    downloadCompressed(downloadItemButton.dataset.downloadBatchId);
+  }
 }
 
 function getBatchStatusLabel(item) {
@@ -575,8 +619,7 @@ function invalidateCompressedResults() {
   if (!batchItems.length || isBatchProcessing) return;
   const item = getSelectedBatchItem();
   if (item?.compressedBlob) {
-    compressButton.textContent = "用新参数重压当前图";
-    statusText.textContent = "参数已更新，已完成结果会保留；重新压缩当前图或全部图片可应用新参数。";
+    statusText.textContent = "参数已更新，已完成结果会保留；可在缩略图单独重压，或压缩全部图片应用新参数。";
   } else {
     statusText.textContent = "参数已更新，将用于后续压缩。";
   }
@@ -596,6 +639,13 @@ function updateUploadPrompt() {
   dropzoneTitle.textContent = `已选择 ${count} 张图片`;
   dropzoneHint.textContent = `原图合计 ${formatBytes(totalOriginalSize)}，可重新选择或拖拽替换`;
   chooseButton.textContent = "重新选择图片";
+}
+
+function updateDimensionPlaceholders(width, height) {
+  const hasWidth = Number.isFinite(width) && width > 0;
+  const hasHeight = Number.isFinite(height) && height > 0;
+  maxWidthInput.placeholder = hasWidth ? `原始（${width}）` : "原始";
+  maxHeightInput.placeholder = hasHeight ? `原始（${height}）` : "原始";
 }
 
 function startCompareDrag(event) {
@@ -656,7 +706,7 @@ async function createZipBlob(items) {
 
   for (const [index, item] of items.entries()) {
     const data = new Uint8Array(await item.compressedBlob.arrayBuffer());
-    const fileName = getUniqueZipName(buildDownloadName(item.file.name, formatSelect.value), usedNames, index);
+    const fileName = getUniqueZipName(buildDownloadName(item.file.name, item.outputType || formatSelect.value), usedNames, index);
     const nameBytes = encoder.encode(fileName);
     const crc = crc32(data);
     const dateParts = getDosDateTime(new Date());
@@ -873,9 +923,6 @@ function resetAll() {
   compressedPreview.removeAttribute("src");
   previewStage.classList.remove("has-image", "has-compressed", "dragging-compare");
   compressor.classList.remove("has-file");
-  compressButton.disabled = true;
-  compressButton.textContent = "压缩当前图片";
-  downloadButton.disabled = true;
   resetButton.disabled = true;
   originalSize.textContent = "--";
   compressedSize.textContent = "--";
@@ -886,10 +933,11 @@ function resetAll() {
   batchStrip.innerHTML = "";
   batchSummaryText.textContent = "已选择 0 张图片";
   batchProgressText.textContent = "等待压缩";
-  batchCompressButton.disabled = false;
-  batchCompressButton.textContent = "压缩全部图片";
+  batchCompressButton.disabled = true;
+  batchCompressButton.textContent = "压缩图片";
   batchZipButton.disabled = true;
   batchZipButton.textContent = "打包下载 ZIP";
+  updateDimensionPlaceholders(0, 0);
   updateUploadPrompt();
 }
 

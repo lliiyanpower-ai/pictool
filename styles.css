@@ -729,6 +729,7 @@ input[type="range"] {
 }
 
 .compress-button,
+.compress-actions button,
 .download-row button {
   height: 50px;
   border: 0;
@@ -744,17 +745,37 @@ input[type="range"] {
 
 .compress-actions {
   display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 0.72fr);
   gap: 12px;
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid rgba(84, 105, 165, 0.12);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.compress-actions button {
+  min-width: 0;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .compress-button:disabled,
+.compress-actions button:disabled,
 .download-row button:disabled {
   cursor: not-allowed;
   opacity: 0.52;
   box-shadow: none;
+}
+
+.compress-actions button:nth-child(2) {
+  color: #fff;
+  background: linear-gradient(135deg, #7655f7, #2f61f4);
+}
+
+.compress-actions button:nth-child(3) {
+  color: #31405d;
+  background: #eaf0fb;
 }
 
 .preview-panel {
@@ -922,7 +943,7 @@ input[type="range"] {
 .batch-strip {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 118px;
+  grid-auto-columns: 142px;
   gap: 10px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -932,8 +953,7 @@ input[type="range"] {
 .batch-thumb {
   position: relative;
   display: grid;
-  grid-template-rows: 72px auto auto;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   border: 1px solid rgba(84, 105, 165, 0.16);
   border-radius: 8px;
@@ -941,16 +961,35 @@ input[type="range"] {
   color: #26324d;
   background: #fff;
   text-align: left;
+  overflow: hidden;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .batch-thumb.active,
 .batch-thumb:hover,
-.batch-thumb:focus-visible {
+.batch-thumb:focus-within {
   border-color: rgba(47, 97, 244, 0.58);
   box-shadow: 0 10px 24px rgba(47, 97, 244, 0.12);
   transform: translateY(-1px);
+}
+
+.batch-preview {
+  position: relative;
+  display: grid;
+  grid-template-rows: 72px auto auto auto;
+  gap: 6px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+
+.batch-preview:focus-visible,
+.batch-thumb-actions button:focus-visible {
   outline: none;
+  box-shadow: 0 0 0 3px rgba(47, 97, 244, 0.18);
 }
 
 .batch-thumb img {
@@ -1015,42 +1054,48 @@ input[type="range"] {
   font-weight: 800;
 }
 
-.batch-actions {
+.batch-thumb-actions {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  left: 7px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.batch-actions button:last-child {
-  grid-column: 1 / -1;
+.batch-thumb:hover .batch-thumb-actions,
+.batch-thumb:focus-within .batch-thumb-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
-.batch-actions button {
+.batch-thumb-actions button {
   min-width: 0;
-  height: 42px;
+  height: 30px;
   border: 0;
-  border-radius: 8px;
-  padding: 0 10px;
-  font-size: 13px;
+  border-radius: 7px;
+  padding: 0 8px;
+  font-size: 12px;
   font-weight: 900;
 }
 
-.batch-actions button:first-child {
+.batch-thumb-actions button:first-child {
   color: #fff;
   background: linear-gradient(135deg, #34c777, #2f61f4);
 }
 
-.batch-actions button:nth-child(2) {
+.batch-thumb-actions button:last-child {
   color: #fff;
   background: linear-gradient(135deg, #7655f7, #2f61f4);
 }
 
-.batch-actions button:last-child {
-  color: #31405d;
-  background: #eaf0fb;
-}
-
-.batch-actions button:disabled {
+.batch-thumb-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.52;
 }
@@ -2430,6 +2475,16 @@ input[type="range"] {
     text-align: center;
   }
 
+  .compress-actions {
+    grid-template-columns: minmax(108px, 1.25fr) minmax(104px, 1fr) minmax(82px, 0.72fr);
+    gap: 8px;
+  }
+
+  .compress-actions button {
+    padding: 0 6px;
+    font-size: 12px;
+  }
+
   .batch-summary {
     align-items: flex-start;
     flex-direction: column;
@@ -2437,18 +2492,18 @@ input[type="range"] {
   }
 
   .batch-strip {
-    grid-auto-columns: 104px;
-  }
-
-  .batch-thumb {
-    grid-template-rows: 64px auto auto;
+    grid-auto-columns: 126px;
   }
 
   .batch-thumb img {
     height: 64px;
   }
 
-  .batch-actions {
+  .batch-preview {
+    grid-template-rows: 64px auto auto auto;
+  }
+
+  .batch-thumb-actions {
     grid-template-columns: 1fr;
   }
 

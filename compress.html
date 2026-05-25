@@ -111,12 +111,10 @@
               </div>
             </div>
 
-            <div class="compress-actions" aria-label="图片操作">
-              <button class="compress-button" id="compressButton" type="button" disabled>压缩当前图片</button>
-              <div class="download-row">
-                <button id="downloadButton" type="button" disabled>下载压缩图片</button>
-                <button id="resetButton" type="button" disabled>重新选择</button>
-              </div>
+            <div class="compress-actions" aria-label="批量图片操作">
+              <button class="compress-button" id="batchCompressButton" type="button" disabled>压缩图片</button>
+              <button id="batchZipButton" type="button" disabled>打包下载 ZIP</button>
+              <button id="resetButton" type="button" disabled>重新选择</button>
             </div>
 
             <div class="batch-panel hidden" id="batchPanel">
@@ -125,11 +123,6 @@
                 <span id="batchProgressText">等待压缩</span>
               </div>
               <div class="batch-strip" id="batchStrip" aria-label="批量图片缩略图"></div>
-              <div class="batch-actions">
-                <button id="batchCompressButton" type="button">压缩全部图片</button>
-                <button id="batchZipButton" type="button" disabled>打包下载 ZIP</button>
-                <button id="batchClearButton" type="button">清空重选</button>
-              </div>
             </div>
 
             <p class="status" id="statusText" role="status">等待上传图片</p>
