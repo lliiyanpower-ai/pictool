@@ -58,10 +58,10 @@
           <button id="undoButton" type="button" disabled>上一步</button>
           <button id="redoButton" type="button" disabled>下一步</button>
         </div>
-        <div class="workspace-zoom" aria-label="画布缩放">
-          <button id="zoomOutButton" type="button">-</button>
-          <span id="zoomLabel">适应</span>
-          <button id="zoomInButton" type="button">+</button>
+        <div class="workspace-zoom" aria-label="缩放">
+          <button id="zoomOutButton" type="button" aria-label="缩小" title="缩小">-</button>
+          <span id="zoomLabel">100%</span>
+          <button id="zoomInButton" type="button" aria-label="放大" title="放大">+</button>
         </div>
       </header>
 
@@ -364,7 +364,6 @@
               </div>
               <div class="workspace-export-actions">
                 <button class="workspace-primary" id="workspaceDownloadButton" type="button" disabled>下载图片</button>
-                <button class="workspace-secondary" id="workspaceCompressPageButton" type="button" disabled>图片压缩</button>
               </div>
               <p id="workspaceStatus" class="workspace-status">等待上传图片</p>
             </div>
@@ -384,7 +383,7 @@
       })();
     </script>
     <script src="analytics.js"></script>
-    <script src="image-support.js"></script>
+    <script src="image-support.js?v=workspace-preview-zoom"></script>
     <script type="module" src="workspace.js"></script>
   </body>
 </html>

@@ -19,8 +19,7 @@ import {
   escapeHtml,
   formatBytes,
   formatFileName,
-  getImageExtension,
-  sendBlobToCompress
+  getImageExtension
 } from "./shared/export-utils.js";
 
 const workspaceFileInput = document.querySelector("#workspaceFileInput");
@@ -43,7 +42,6 @@ const workspaceLayerCount = document.querySelector("#workspaceLayerCount");
 const workspaceLayersList = document.querySelector("#workspaceLayersList");
 const workspaceStatus = document.querySelector("#workspaceStatus");
 const workspaceDownloadButton = document.querySelector("#workspaceDownloadButton");
-const workspaceCompressPageButton = document.querySelector("#workspaceCompressPageButton");
 const workspaceExportEstimate = document.querySelector("#workspaceExportEstimate");
 const workspaceExportControls = document.querySelector("#workspaceExportControls");
 const workspaceExportLeftDock = document.querySelector("#workspaceExportLeftDock");
@@ -101,15 +99,51 @@ const zoomLabel = document.querySelector("#zoomLabel");
 const toast = document.querySelector("#toast");
 const workspaceCropBox = document.querySelector("#workspaceCropBox");
 
+const {
+  getFirstImageFileFromTransfer,
+  getImageFilesFromTransfer,
+  getUnsupportedImageMessage,
+  hasFileLikeTransfer,
+  hasImageLikeTransfer,
+  isImageFile
+} = window;
+
+const trackEvent = window.trackEvent || (() => {});
+const trackToolEvent = window.trackToolEvent || ((tool, action, details = {}) => {
+  trackEvent(`${tool}_${action}`, { tool, action, ...details });
+});
+const trackSmartCropEvent = window.trackSmartCropEvent || ((tool, action, details = {}) => {
+  const normalizedTool = tool || "crop";
+  const prefix = normalizedTool === "workspace" ? "workspace_smart_crop" : "smart_crop";
+  trackEvent(`${prefix}_${action}`, { tool: normalizedTool, action, ...details });
+});
+const getDimensionBucket = window.getDimensionBucket || ((width, height) => {
+  const pixels = Number(width) * Number(height);
+  if (!Number.isFinite(pixels) || pixels <= 0) return "unknown";
+  if (pixels < 1280 * 720) return "small";
+  if (pixels < 1920 * 1080) return "medium";
+  if (pixels < 3840 * 2160) return "large";
+  return "ultra";
+});
+
 const SMART_CROP_STORAGE_KEY = "pictool.crop.smartCrop";
 const SMART_CROP_SAMPLE_MAX = 180;
 const FACE_DETECT_SAMPLE_MAX = 720;
 const FACE_HEURISTIC_SAMPLE_MAX = 360;
 const WORKSPACE_CROP_MIN_SIZE = 24;
-const WORKSPACE_PREVIEW_MAX_PIXELS = 2200000;
+const WORKSPACE_PREVIEW_BASE_MAX_PIXELS = 2200000;
+const WORKSPACE_PREVIEW_HARD_MAX_PIXELS = 6000000;
+const WORKSPACE_PREVIEW_ZOOM_MIN = 1;
+const WORKSPACE_PREVIEW_ZOOM_MAX = 500;
+const WORKSPACE_PREVIEW_ZOOM_STEP = 10;
+const WORKSPACE_PREVIEW_RENDER_DELAY = 140;
+const WORKSPACE_COMPRESSED_PREVIEW_DELAY = 320;
 const WORKSPACE_ESTIMATE_MAX_PIXELS = 1200000;
 const WORKSPACE_ESTIMATE_DELAY = 360;
 let workspaceModeCloseTimer = null;
+let workspacePreviewRenderTimer = 0;
+let workspacePreviewRenderFrame = 0;
+let workspaceCompressedPreviewTimer = 0;
 
 const state = {
   image: null,
@@ -131,12 +165,17 @@ const state = {
   filterValues: {},
   textLayers: [],
   selectedTextId: "",
-  zoom: 1,
-  fitZoom: 1,
+  zoom: 100,
+  fitZoom: 100,
   outputBlob: null,
   outputUrl: "",
   estimateToken: 0,
   estimateTimer: 0,
+  compressedPreviewToken: 0,
+  compressedPreviewBlob: null,
+  compressedPreviewUrl: "",
+  compressedPreviewImage: null,
+  isCompressedPreviewRendering: false,
   isEstimating: false,
   needsEstimate: false,
   isDownloading: false,
@@ -354,10 +393,12 @@ function bindWorkspaceEvents() {
       updateQualityControlState();
       clearOutputCache();
       scheduleOutputEstimate();
+      scheduleCompressedPreviewRender();
     });
     input.addEventListener("change", () => {
       clearOutputCache();
       scheduleOutputEstimate(0);
+      scheduleCompressedPreviewRender(0);
     });
   });
   workspaceFormat.addEventListener("change", () => {
@@ -388,11 +429,11 @@ function bindWorkspaceEvents() {
   workspaceAspectLockCheck.addEventListener("change", () => {
     clearOutputCache();
     scheduleOutputEstimate();
+    scheduleCompressedPreviewRender();
   });
   syncExportSizeLock();
 
   workspaceDownloadButton.addEventListener("click", downloadWorkspaceImage);
-  workspaceCompressPageButton.addEventListener("click", sendWorkspaceImageToCompress);
 
   workspaceCanvas.addEventListener("pointerdown", startCanvasDrag);
   workspaceCanvas.addEventListener("pointermove", moveCanvasDrag);
@@ -403,8 +444,8 @@ function bindWorkspaceEvents() {
   workspaceCropBox.addEventListener("pointerup", stopCanvasDrag);
   workspaceCropBox.addEventListener("pointercancel", stopCanvasDrag);
 
-  zoomOutButton.addEventListener("click", () => setZoom(Math.max(0.18, state.zoom - 0.1)));
-  zoomInButton.addEventListener("click", () => setZoom(Math.min(2.4, state.zoom + 0.1)));
+  zoomOutButton.addEventListener("click", () => setZoom(state.zoom - WORKSPACE_PREVIEW_ZOOM_STEP));
+  zoomInButton.addEventListener("click", () => setZoom(state.zoom + WORKSPACE_PREVIEW_ZOOM_STEP));
   window.addEventListener("resize", fitWorkspaceCanvas);
   const dockMedia = window.matchMedia("(max-width: 980px)");
   if (dockMedia.addEventListener) {
@@ -435,6 +476,10 @@ function setActiveTool(tool) {
   document.querySelectorAll("[data-panel]").forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.panel === tool);
   });
+  if (state.image && previousTool !== tool && (previousTool === "export" || tool === "export")) {
+    renderWorkspace();
+    return;
+  }
   requestAnimationFrame(positionWorkspaceCropBox);
 }
 
@@ -510,6 +555,7 @@ function loadWorkspaceFile(file, source = "select") {
     state.smartCropBusy = false;
     state.hasManualCrop = false;
     state.faceDetectionCache = null;
+    state.zoom = getDefaultWorkspaceZoom();
     window.clearTimeout(state.estimateTimer);
     state.estimateTimer = 0;
     state.estimateToken += 1;
@@ -517,6 +563,7 @@ function loadWorkspaceFile(file, source = "select") {
     state.needsEstimate = false;
     state.outputBlob = null;
     revokeOutputUrl();
+    clearCompressedPreviewCache();
     workspaceCropWidth.value = image.naturalWidth;
     workspaceCropHeight.value = image.naturalHeight;
     state.textLayers = [];
@@ -580,7 +627,7 @@ function hasImageLikeDragData(dataTransfer) {
 }
 
 function enableImageActions(enabled) {
-  [applyCropButton, workspaceDownloadButton, workspaceCompressPageButton].forEach((button) => {
+  [applyCropButton, workspaceDownloadButton].forEach((button) => {
     button.disabled = !enabled;
   });
 }
@@ -1918,15 +1965,19 @@ function deleteSelectedTextLayer() {
 }
 
 function renderWorkspace() {
+  cancelScheduledPreviewRender();
+  cancelScheduledCompressedPreviewRender();
   if (!state.image || !state.cropRect) {
     workspaceCanvas.style.display = "none";
     workspaceStage.classList.remove("is-cropping");
+    clearCompressedPreviewCache();
     workspaceSize.textContent = "--";
     workspaceEstimate.textContent = "--";
     workspaceExportEstimate.textContent = "--";
     workspaceLayerCount.textContent = "0";
     updateQualityControlState();
     updateDownloadButtons();
+    updatePreviewZoomControls();
     return;
   }
   workspaceCanvas.style.display = "block";
@@ -1936,6 +1987,9 @@ function renderWorkspace() {
   updateLayerList();
   markOutputEstimateDirty();
   updateDownloadButtons();
+  if (shouldShowCompressedPreview()) {
+    scheduleCompressedPreviewRender(0);
+  }
 }
 
 function renderToCanvas(canvas, forExport, forcedOutput = null) {
@@ -1959,12 +2013,19 @@ function renderToCanvas(canvas, forExport, forcedOutput = null) {
 
 function getPreviewCanvasSize(output) {
   const pixels = output.width * output.height;
-  if (pixels <= WORKSPACE_PREVIEW_MAX_PIXELS) return output;
-  const scale = Math.sqrt(WORKSPACE_PREVIEW_MAX_PIXELS / pixels);
+  const pixelBudget = getPreviewPixelBudget();
+  if (pixels <= pixelBudget) return output;
+  const scale = Math.sqrt(pixelBudget / pixels);
   return {
     width: Math.max(1, Math.round(output.width * scale)),
     height: Math.max(1, Math.round(output.height * scale))
   };
+}
+
+function getPreviewPixelBudget() {
+  const zoomScale = Math.max(1, getEffectivePreviewZoom() / 100);
+  const zoomBudget = Math.round(WORKSPACE_PREVIEW_BASE_MAX_PIXELS * zoomScale * zoomScale);
+  return Math.min(WORKSPACE_PREVIEW_HARD_MAX_PIXELS, zoomBudget);
 }
 
 function applyWorkspaceFiltersToCanvas(canvas) {
@@ -2135,6 +2196,7 @@ function syncExportSizeLock() {
   updateExportSizePlaceholders();
   clearOutputCache();
   scheduleOutputEstimate();
+  scheduleCompressedPreviewRender();
 }
 
 function syncExportBoundDimension(changedField) {
@@ -2156,18 +2218,37 @@ function syncExportBoundDimension(changedField) {
 }
 
 function fitWorkspaceCanvas() {
-  if (!state.image) {
+  if (!state.image || !state.cropRect) {
     workspaceStage.classList.remove("is-cropping");
+    updatePreviewZoomControls();
     return;
   }
-  const shell = workspaceStage.getBoundingClientRect();
-  const fit = Math.min((shell.width - 72) / workspaceCanvas.width, (shell.height - 72) / workspaceCanvas.height, 1);
-  state.fitZoom = fit;
-  const zoom = state.zoom === 1 ? fit : state.zoom;
-  workspaceCanvas.style.width = `${Math.round(workspaceCanvas.width * zoom)}px`;
-  workspaceCanvas.style.height = `${Math.round(workspaceCanvas.height * zoom)}px`;
-  zoomLabel.textContent = state.zoom === 1 ? "适应" : `${Math.round(state.zoom * 100)}%`;
+  const output = getOutputSize(shouldShowCompressedPreview());
+  const outputWidth = Math.max(1, output.width);
+  const outputHeight = Math.max(1, output.height);
+  const fit = getWorkspaceFitZoom(output) / 100;
+  const previewZoom = getEffectivePreviewZoom();
+  const displayScale = previewZoom / 100;
+  state.fitZoom = fit * 100;
+  workspaceCanvas.style.width = `${Math.max(1, Math.round(outputWidth * displayScale))}px`;
+  workspaceCanvas.style.height = `${Math.max(1, Math.round(outputHeight * displayScale))}px`;
+  zoomLabel.textContent = `${formatWorkspaceZoom(previewZoom)}%`;
+  updatePreviewZoomControls();
   requestAnimationFrame(positionWorkspaceCropBox);
+}
+
+function getWorkspaceFitZoom(output = getOutputSize(shouldShowCompressedPreview())) {
+  const shell = workspaceStage.getBoundingClientRect();
+  if (!shell.width || !shell.height) return 100;
+  const outputWidth = Math.max(1, output.width);
+  const outputHeight = Math.max(1, output.height);
+  const availableWidth = Math.max(1, shell.width - 72);
+  const availableHeight = Math.max(1, shell.height - 72);
+  return Math.min(availableWidth / outputWidth, availableHeight / outputHeight, 1) * 100;
+}
+
+function getDefaultWorkspaceZoom() {
+  return Math.min(100, getWorkspaceFitZoom());
 }
 
 function positionWorkspaceCropBox() {
@@ -2205,8 +2286,187 @@ function positionWorkspaceCropBox() {
 }
 
 function setZoom(value) {
-  state.zoom = Math.abs(value - state.fitZoom) < 0.04 ? 1 : value;
+  const clamped = clampNumber(value, WORKSPACE_PREVIEW_ZOOM_MIN, WORKSPACE_PREVIEW_ZOOM_MAX);
+  const nextZoom = clamped;
+  if (state.zoom === nextZoom) return;
+  state.zoom = nextZoom;
   fitWorkspaceCanvas();
+  if (shouldShowCompressedPreview()) {
+    scheduleCompressedPreviewRender();
+    return;
+  }
+  scheduleWorkspacePreviewRender();
+}
+
+function renderWorkspacePreview() {
+  if (!state.image || !state.cropRect) {
+    fitWorkspaceCanvas();
+    return;
+  }
+  renderToCanvas(workspaceCanvas, false);
+  fitWorkspaceCanvas();
+}
+
+function scheduleWorkspacePreviewRender() {
+  cancelScheduledPreviewRender();
+  if (!state.image || !state.cropRect) return;
+  workspacePreviewRenderTimer = window.setTimeout(() => {
+    workspacePreviewRenderTimer = 0;
+    workspacePreviewRenderFrame = window.requestAnimationFrame(() => {
+      workspacePreviewRenderFrame = 0;
+      renderWorkspacePreview();
+    });
+  }, WORKSPACE_PREVIEW_RENDER_DELAY);
+}
+
+function cancelScheduledPreviewRender() {
+  if (workspacePreviewRenderTimer) {
+    window.clearTimeout(workspacePreviewRenderTimer);
+    workspacePreviewRenderTimer = 0;
+  }
+  if (workspacePreviewRenderFrame) {
+    window.cancelAnimationFrame(workspacePreviewRenderFrame);
+    workspacePreviewRenderFrame = 0;
+  }
+}
+
+function shouldShowCompressedPreview() {
+  return state.activeTool === "export" && !!state.image && !!state.cropRect;
+}
+
+function scheduleCompressedPreviewRender(delay = WORKSPACE_COMPRESSED_PREVIEW_DELAY) {
+  cancelScheduledCompressedPreviewRender();
+  if (!shouldShowCompressedPreview()) return;
+
+  const token = ++state.compressedPreviewToken;
+  state.isCompressedPreviewRendering = true;
+  window.clearTimeout(state.estimateTimer);
+  state.estimateTimer = 0;
+  workspaceStatus.textContent = "正在生成当前导出图...";
+  workspaceCompressedPreviewTimer = window.setTimeout(() => {
+    workspaceCompressedPreviewTimer = 0;
+    renderCompressedPreview(token);
+  }, delay);
+}
+
+function cancelScheduledCompressedPreviewRender() {
+  if (!workspaceCompressedPreviewTimer) return;
+  window.clearTimeout(workspaceCompressedPreviewTimer);
+  workspaceCompressedPreviewTimer = 0;
+}
+
+async function renderCompressedPreview(token = ++state.compressedPreviewToken) {
+  if (!shouldShowCompressedPreview()) {
+    state.isCompressedPreviewRendering = false;
+    return;
+  }
+
+  try {
+    const result = await makeCompressedPreviewBlob();
+    if (token !== state.compressedPreviewToken || !shouldShowCompressedPreview()) {
+      if (result?.url) URL.revokeObjectURL(result.url);
+      return;
+    }
+
+    const image = await loadImageFromUrl(result.url);
+    if (token !== state.compressedPreviewToken || !shouldShowCompressedPreview()) {
+      URL.revokeObjectURL(result.url);
+      return;
+    }
+
+    revokeOutputUrl();
+    revokeCompressedPreviewUrl();
+    state.compressedPreviewBlob = result.blob;
+    state.compressedPreviewUrl = result.url;
+    state.compressedPreviewImage = image;
+    state.outputBlob = result.blob;
+    state.outputUrl = URL.createObjectURL(result.blob);
+    state.isCompressedPreviewRendering = false;
+    drawCompressedPreviewImage(image);
+    const label = formatBytes(result.blob.size);
+    workspaceEstimate.textContent = label;
+    workspaceExportEstimate.textContent = label;
+    workspaceStatus.textContent = `画布显示当前导出图 · ${getExportFormatLabel()} · ${label}`;
+  } catch (error) {
+    if (token !== state.compressedPreviewToken) return;
+    state.isCompressedPreviewRendering = false;
+    state.compressedPreviewBlob = null;
+    state.compressedPreviewImage = null;
+    revokeCompressedPreviewUrl();
+    renderWorkspacePreview();
+    workspaceStatus.textContent = "压缩效果生成失败，下载仍可继续。";
+  }
+}
+
+async function makeCompressedPreviewBlob() {
+  const blob = await makeOutputBlob();
+  if (!blob) throw new Error("compressed_preview_failed");
+  return {
+    blob,
+    url: URL.createObjectURL(blob)
+  };
+}
+
+function drawCompressedPreviewImage(image) {
+  if (!shouldShowCompressedPreview()) return;
+  workspaceCanvas.style.display = "block";
+  workspaceCanvas.width = image.naturalWidth || image.width;
+  workspaceCanvas.height = image.naturalHeight || image.height;
+  const ctx = workspaceCanvas.getContext("2d");
+  ctx.clearRect(0, 0, workspaceCanvas.width, workspaceCanvas.height);
+  ctx.drawImage(image, 0, 0, workspaceCanvas.width, workspaceCanvas.height);
+  fitWorkspaceCanvas();
+}
+
+function loadImageFromUrl(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("compressed_preview_image_failed"));
+    image.src = url;
+  });
+}
+
+function clearCompressedPreviewCache() {
+  cancelScheduledCompressedPreviewRender();
+  state.compressedPreviewToken += 1;
+  state.compressedPreviewBlob = null;
+  state.compressedPreviewImage = null;
+  state.isCompressedPreviewRendering = false;
+  revokeCompressedPreviewUrl();
+}
+
+function revokeCompressedPreviewUrl() {
+  if (state.compressedPreviewUrl) URL.revokeObjectURL(state.compressedPreviewUrl);
+  state.compressedPreviewUrl = "";
+}
+
+function getExportFormatLabel() {
+  const labels = {
+    "image/jpeg": "JPEG",
+    "image/webp": "WebP",
+    "image/png": "PNG"
+  };
+  const label = labels[workspaceFormat.value] || "图片";
+  return workspaceFormat.value === "image/png" ? label : `${label} ${qualityRange.value}%`;
+}
+
+function getEffectivePreviewZoom() {
+  const zoom = Number(state.zoom);
+  if (!Number.isFinite(zoom) || zoom <= 0) return 100;
+  return clampNumber(zoom, WORKSPACE_PREVIEW_ZOOM_MIN, WORKSPACE_PREVIEW_ZOOM_MAX);
+}
+
+function formatWorkspaceZoom(value) {
+  return value < 10 && !Number.isInteger(value) ? value.toFixed(1) : String(Math.round(value));
+}
+
+function updatePreviewZoomControls() {
+  const hasImage = !!state.image && !!state.cropRect;
+  const zoom = getEffectivePreviewZoom();
+  if (!hasImage) zoomLabel.textContent = "100%";
+  zoomOutButton.disabled = !hasImage || zoom <= WORKSPACE_PREVIEW_ZOOM_MIN + 0.01;
+  zoomInButton.disabled = !hasImage || zoom >= WORKSPACE_PREVIEW_ZOOM_MAX - 0.01;
 }
 
 function updateWorkspaceInfo() {
@@ -2249,6 +2509,10 @@ function markOutputEstimateDirty() {
 
 function scheduleOutputEstimate(delay = WORKSPACE_ESTIMATE_DELAY) {
   window.clearTimeout(state.estimateTimer);
+  if (shouldShowCompressedPreview()) {
+    state.estimateTimer = 0;
+    return;
+  }
   if (!state.image) {
     state.estimateTimer = 0;
     return;
@@ -2260,6 +2524,7 @@ function scheduleOutputEstimate(delay = WORKSPACE_ESTIMATE_DELAY) {
 }
 
 async function updateOutputEstimate() {
+  if (shouldShowCompressedPreview()) return;
   if (!state.image) {
     workspaceEstimate.textContent = "--";
     workspaceExportEstimate.textContent = "--";
@@ -2371,11 +2636,12 @@ async function downloadWorkspaceImage() {
   }
 }
 
-function clearOutputCache(invalidate = true) {
+function clearOutputCache(invalidate = true, { clearPreview = true } = {}) {
   if (invalidate) state.estimateToken++;
   state.isEstimating = false;
   state.outputBlob = null;
   revokeOutputUrl();
+  if (clearPreview) clearCompressedPreviewCache();
   workspaceEstimate.textContent = state.image ? "计算中" : "--";
   workspaceExportEstimate.textContent = state.image ? "计算中" : "--";
   updateDownloadButtons();
@@ -2390,7 +2656,7 @@ async function ensureOutputBlob() {
   if (state.outputBlob && state.outputUrl) return state.outputBlob;
   window.clearTimeout(state.estimateTimer);
   state.estimateTimer = 0;
-  clearOutputCache(false);
+  clearOutputCache(false, { clearPreview: false });
   const blob = await makeOutputBlob();
   if (!blob) return null;
   state.outputBlob = blob;
@@ -2401,36 +2667,6 @@ async function ensureOutputBlob() {
   return blob;
 }
 
-async function sendWorkspaceImageToCompress() {
-  if (!state.image || state.isDownloading) return;
-  state.isDownloading = true;
-  updateDownloadButtons("处理中...");
-  workspaceStatus.textContent = "正在准备当前作品...";
-  try {
-    const blob = await ensureOutputBlob();
-    if (!blob) throw new Error("unsupported_format");
-    trackEvent("compress_clicked", {
-      tool: "workspace",
-      format: workspaceFormat.value,
-      text_layers: state.textLayers.length
-    });
-    await sendBlobToCompress({
-      blob,
-      name: `${state.fileName}-workspace.${getExtension()}`,
-      type: workspaceFormat.value,
-      from: "workspace"
-    });
-  } catch (error) {
-    workspaceStatus.textContent = error.message === "unsupported_format"
-      ? "当前浏览器不支持此导出格式。"
-      : "当前作品准备失败，请重试。";
-    showToast(workspaceStatus.textContent);
-  } finally {
-    state.isDownloading = false;
-    updateDownloadButtons();
-  }
-}
-
 function updateDownloadButtons(label) {
   const disabled = !state.image || state.isDownloading;
   const currentBusyLabel = workspaceDownloadButton.textContent !== "下载图片"
@@ -2438,7 +2674,6 @@ function updateDownloadButtons(label) {
     : "处理中...";
   const buttonLabel = state.isDownloading ? (label || currentBusyLabel) : "下载图片";
   workspaceDownloadButton.disabled = disabled;
-  workspaceCompressPageButton.disabled = disabled;
   workspaceDownloadButton.textContent = buttonLabel;
 }
 
