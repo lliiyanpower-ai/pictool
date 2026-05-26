@@ -66,6 +66,9 @@
 - 下载点击
 - 压缩跳转
 - 工作台工具切换
+- 智能构图开关开启或关闭
+- 重新智能构图点击
+- 智能裁剪成功或失败
 
 统计字段应尽量使用分桶或枚举值，而不是精确用户数据。
 
@@ -117,12 +120,31 @@
 - `file_name`
 - `name`
 - `dataUrl`
+- `x`
+- `y`
+- `width`
+- `height`
+- `face`
+- `faces`
+- `person`
+- `people`
+- `box`
+- `boxes`
+- `coordinates`
 - `file_size_mb`
 - `output_size_mb`
 - `output_width`
 - `output_height`
 
 需要统计大小、尺寸或质量时，使用分桶结果。
+
+智能裁剪埋点只允许上报：
+
+- 策略类型：`face`、`person`、`saliency`、`center`
+- 结果状态：`success`、`failed`
+- 图片尺寸分桶和目标尺寸分桶
+
+不得上报人脸坐标、人物坐标、检测框数量、检测截图或精确尺寸。
 
 ### 高频操作
 

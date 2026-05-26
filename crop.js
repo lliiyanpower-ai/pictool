@@ -130,6 +130,7 @@ smartCropToggle.addEventListener("change", () => {
   writeSmartCropPreference(smartCropEnabled);
   smartCropRunId += 1;
   updateSmartCropControls();
+  trackSmartCropEvent("crop", smartCropEnabled ? "enabled" : "disabled", getSmartCropAnalyticsDetails());
 
   if (!smartCropEnabled) {
     smartCropStatus.textContent = "智能构图已关闭，可继续手动裁剪。";
@@ -148,6 +149,7 @@ smartCropButton.addEventListener("click", () => {
   hasManualCrop = false;
   faceDetectionCache = null;
   beginCropEdit();
+  trackSmartCropEvent("crop", "reset_clicked", getSmartCropAnalyticsDetails());
   applySmartCrop("button", { force: true });
 });
 cropFormatSelect.addEventListener("change", () => {
@@ -417,6 +419,11 @@ async function applySmartCrop(reason, { force = false } = {}) {
     invalidateOutput();
     drawCropBox();
     smartCropStatus.textContent = result.message;
+    trackSmartCropEvent(
+      "crop",
+      result.strategy === "center" ? "failed" : "applied",
+      getSmartCropAnalyticsDetails(result)
+    );
   } catch (error) {
     if (runId !== smartCropRunId || !sourceImage) return;
     const centered = makeCenteredCrop(activeRatio);
@@ -428,6 +435,7 @@ async function applySmartCrop(reason, { force = false } = {}) {
     invalidateOutput();
     drawCropBox();
     smartCropStatus.textContent = "智能构图失败，已使用居中裁剪";
+    trackSmartCropEvent("crop", "failed", getSmartCropAnalyticsDetails({ strategy: "center" }));
   } finally {
     if (runId === smartCropRunId) {
       smartCropBusy = false;
@@ -1343,6 +1351,19 @@ function cancelSmartCropRun() {
 function updateSmartCropControls() {
   smartCropButton.disabled = !sourceImage || !smartCropEnabled || smartCropBusy;
   smartCropToggle.setAttribute("aria-checked", String(smartCropEnabled));
+}
+
+function getSmartCropAnalyticsDetails(result = {}) {
+  const target = cropRect ? getOutputSize() : null;
+  return {
+    strategy: result.strategy || "unknown",
+    dimension_bucket: sourceImage
+      ? getDimensionBucket(sourceImage.naturalWidth, sourceImage.naturalHeight)
+      : "unknown",
+    target_dimension_bucket: target
+      ? getDimensionBucket(target.width, target.height)
+      : "unknown"
+  };
 }
 
 function readSmartCropPreference() {

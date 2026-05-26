@@ -367,9 +367,9 @@
 
 ## 14. 统计埋点边界
 
-本需求不要求第一阶段必须完成埋点开发，但预留统计边界。
+本阶段已补充智能裁剪埋点。事件必须统一走 `analytics.js` 的 `trackSmartCropEvent()`，并遵守 `PRIVACY.md`。
 
-如果后续补充埋点，必须统一走 `analytics.js`，并遵守 `PRIVACY.md`。
+页面脚本只传策略类型和尺寸分桶，最终上报字段由 `analytics.js` 白名单过滤。
 
 允许上报：
 
@@ -377,9 +377,9 @@
 - 重新智能构图点击
 - 智能裁剪成功或失败
 - 使用策略：`face` / `person` / `saliency` / `center`
-- 是否检测到人物：`yes` / `no` / `unknown`
+- 结果状态：`success` / `failed`
 - 图片尺寸分桶
-- 导出尺寸分桶
+- 目标尺寸分桶
 
 禁止上报：
 
@@ -400,15 +400,26 @@ crop_smart_crop_disabled
 crop_smart_crop_applied
 crop_smart_crop_failed
 crop_smart_crop_reset_clicked
-crop_subject_detected
-crop_subject_not_detected
 ```
 
-工作台可使用：
+工作台使用：
 
 ```text
+workspace_crop_smart_crop_enabled
+workspace_crop_smart_crop_disabled
 workspace_crop_smart_crop_applied
-workspace_crop_subject_detected
+workspace_crop_smart_crop_failed
+workspace_crop_smart_crop_reset_clicked
+```
+
+成功或失败事件 payload 仅包含：
+
+```text
+tool
+status
+strategy
+dimension_bucket
+target_dimension_bucket
 ```
 
 ## 15. 异常和降级

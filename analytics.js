@@ -38,6 +38,16 @@
     return "95-100";
   }
 
+  function normalizeDimensionBucket(value) {
+    const allowed = new Set(["unknown", "small", "medium", "large", "ultra"]);
+    return allowed.has(value) ? value : "unknown";
+  }
+
+  function normalizeSmartCropStrategy(value) {
+    const allowed = new Set(["face", "person", "saliency", "center"]);
+    return allowed.has(value) ? value : "unknown";
+  }
+
   function imageMeta(file, width, height) {
     return {
       file_type: file?.type || "unknown",
@@ -47,7 +57,32 @@
   }
 
   function sanitizeDetails(details) {
-    const blockedKeys = new Set(["text", "fileName", "filename", "file_name", "name", "dataUrl"]);
+    const blockedKeys = new Set([
+      "text",
+      "fileName",
+      "filename",
+      "file_name",
+      "name",
+      "dataUrl",
+      "x",
+      "y",
+      "left",
+      "top",
+      "width",
+      "height",
+      "face",
+      "faces",
+      "person",
+      "people",
+      "box",
+      "boxes",
+      "face_box",
+      "face_boxes",
+      "person_box",
+      "person_boxes",
+      "coords",
+      "coordinates"
+    ]);
     const payload = {};
     Object.entries(details || {}).forEach(([key, value]) => {
       if (blockedKeys.has(key)) return;
@@ -69,6 +104,25 @@
     if (details?.output_width && details?.output_height && !payload.output_dimension_bucket) {
       payload.output_dimension_bucket = bucketDimensions(details.output_width, details.output_height);
     }
+    return payload;
+  }
+
+  function sanitizeSmartCropDetails(tool, action, details) {
+    const payload = { tool };
+    const isOutcome = action === "applied" || action === "failed";
+
+    if (isOutcome) {
+      payload.status = action === "applied" ? "success" : "failed";
+      payload.strategy = normalizeSmartCropStrategy(details.strategy);
+    }
+
+    if (details.dimension_bucket) {
+      payload.dimension_bucket = normalizeDimensionBucket(details.dimension_bucket);
+    }
+    if (details.target_dimension_bucket) {
+      payload.target_dimension_bucket = normalizeDimensionBucket(details.target_dimension_bucket);
+    }
+
     return payload;
   }
 
@@ -113,8 +167,18 @@
     window.trackEvent(`${tool}_${action}`, { tool, action, ...details });
   };
 
+  window.trackSmartCropEvent = function trackSmartCropEvent(tool, action, details = {}) {
+    const normalizedTool = tool === "workspace" ? "workspace" : "crop";
+    const allowedActions = new Set(["enabled", "disabled", "reset_clicked", "applied", "failed"]);
+    if (!allowedActions.has(action)) return;
+
+    const prefix = normalizedTool === "workspace" ? "workspace_crop_smart_crop" : "crop_smart_crop";
+    window.trackEvent(`${prefix}_${action}`, sanitizeSmartCropDetails(normalizedTool, action, details));
+  };
+
   window.getImageAnalyticsMeta = imageMeta;
   window.getQualityBucket = bucketQuality;
+  window.getDimensionBucket = bucketDimensions;
 
   window.configureTracking = function configureTracking(options = {}) {
     Object.assign(config, options);

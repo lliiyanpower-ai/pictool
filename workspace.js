@@ -243,9 +243,7 @@ function bindWorkspaceEvents() {
     state.smartCropRunId += 1;
     syncWorkspaceSmartCropControls();
 
-    trackEvent(state.smartCropEnabled ? "crop_smart_crop_enabled" : "crop_smart_crop_disabled", {
-      tool: "workspace"
-    });
+    trackSmartCropEvent("workspace", state.smartCropEnabled ? "enabled" : "disabled", getWorkspaceSmartCropAnalyticsDetails());
 
     if (!state.smartCropEnabled) {
       workspaceSmartCropStatus.textContent = "智能构图已关闭，可继续手动裁剪。";
@@ -266,9 +264,7 @@ function bindWorkspaceEvents() {
     state.hasManualCrop = false;
     state.faceDetectionCache = null;
     updateCropPreview();
-    trackEvent("crop_smart_crop_reset_clicked", {
-      tool: "workspace"
-    });
+    trackSmartCropEvent("workspace", "reset_clicked", getWorkspaceSmartCropAnalyticsDetails());
     applyWorkspaceSmartCrop("button", { force: true });
   });
   applyCropButton.addEventListener("click", applyCropPreview);
@@ -1013,12 +1009,11 @@ async function applyWorkspaceSmartCrop(reason, { force = false } = {}) {
     });
     renderWorkspace();
     workspaceSmartCropStatus.textContent = getWorkspaceSmartCropMessage(result);
-    trackEvent("workspace_crop_smart_crop_applied", {
-      tool: "workspace",
-      strategy: result.strategy,
-      subject: result.subject,
-      reason
-    });
+    trackSmartCropEvent(
+      "workspace",
+      result.strategy === "center" ? "failed" : "applied",
+      getWorkspaceSmartCropAnalyticsDetails(result)
+    );
   } catch (error) {
     if (runId !== state.smartCropRunId || !state.image) return;
     const centered = getCenteredWorkspacePreview(state.cropPreview);
@@ -1029,10 +1024,7 @@ async function applyWorkspaceSmartCrop(reason, { force = false } = {}) {
     });
     renderWorkspace();
     workspaceSmartCropStatus.textContent = "智能构图失败，已使用居中裁剪";
-    trackEvent("crop_smart_crop_failed", {
-      tool: "workspace",
-      reason: "calculation_failed"
-    });
+    trackSmartCropEvent("workspace", "failed", getWorkspaceSmartCropAnalyticsDetails({ strategy: "center" }));
   } finally {
     if (runId === state.smartCropRunId) {
       state.smartCropBusy = false;
@@ -1706,6 +1698,19 @@ function clampWorkspaceCrop(rect, bounds = state.cropRect) {
 
 function getWorkspaceSmartCropMessage(result) {
   return result.message;
+}
+
+function getWorkspaceSmartCropAnalyticsDetails(result = {}) {
+  const target = state.image ? getOutputSize(false) : null;
+  return {
+    strategy: result.strategy || "unknown",
+    dimension_bucket: state.image
+      ? getDimensionBucket(state.image.naturalWidth, state.image.naturalHeight)
+      : "unknown",
+    target_dimension_bucket: target
+      ? getDimensionBucket(target.width, target.height)
+      : "unknown"
+  };
 }
 
 function markWorkspaceManualCrop() {
