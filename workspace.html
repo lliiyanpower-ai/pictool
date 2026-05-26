@@ -6,7 +6,7 @@
     <title>工作台 - 图片工具箱</title>
     <meta
       name="description"
-      content="图片工具箱工作台是统一编辑入口，可在同一页面完成上传、裁剪、滤镜、标题排版和导出压缩。所有基础处理在浏览器本地完成，不上传图片。"
+      content="图片工具箱工作台是统一编辑入口，可在同一页面完成上传、裁剪、滤镜、标题排版和导出压缩。"
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://pictool.com.cn/workspace.html" />
@@ -15,7 +15,7 @@
     <meta property="og:title" content="工作台 - 图片工具箱" />
     <meta
       property="og:description"
-      content="统一图片工作台，可在一个页面内完成裁剪、滤镜、标题排版和导出压缩，基础处理全部在本地浏览器进行。"
+      content="统一图片工作台，可在一个页面内完成裁剪、滤镜、标题排版和导出压缩。"
     />
     <meta property="og:url" content="https://pictool.com.cn/workspace.html" />
     <meta property="og:locale" content="zh_CN" />
@@ -23,7 +23,7 @@
     <meta name="twitter:title" content="工作台 - 图片工具箱" />
     <meta
       name="twitter:description"
-      content="统一图片工作台，支持上传、裁剪、滤镜、标题和导出压缩，处理过程不上传图片。"
+      content="统一图片工作台，支持上传、裁剪、滤镜、标题和导出压缩。"
     />
     <link rel="stylesheet" href="styles.css" />
     <script type="application/ld+json">
@@ -35,13 +35,13 @@
         "operatingSystem": "Web",
         "isAccessibleForFree": true,
         "url": "https://pictool.com.cn/workspace.html",
-        "description": "统一图片工作台，在同一页面完成上传、裁剪、滤镜、标题排版和导出压缩，基础处理在浏览器本地完成。",
+        "description": "统一图片工作台，在同一页面完成上传、裁剪、滤镜、标题排版和导出压缩。",
         "inLanguage": "zh-CN",
         "featureList": [
           "统一上传、裁剪、滤镜、标题、导出流程",
-          "支持本地浏览器处理",
+          "支持单图连续编辑",
           "支持导出压缩配置",
-          "处理过程不上传图片"
+          "支持当前作品导出"
         ]
       }
     </script>
@@ -52,7 +52,7 @@
         <a class="workspace-back" href="index.html">返回</a>
         <div class="workspace-file">
           <strong id="workspaceFileName">未选择图片</strong>
-          <span id="workspaceFileMeta">本地处理，不上传图片</span>
+          <span id="workspaceFileMeta">等待上传图片</span>
         </div>
         <div class="workspace-history" aria-label="编辑历史">
           <button id="undoButton" type="button" disabled>上一步</button>
@@ -76,6 +76,7 @@
       <aside class="workspace-panel-left" aria-label="工具参数">
         <section class="workspace-tool-panel active" data-panel="upload">
           <h2>上传图片</h2>
+          <p class="workspace-note">推荐从上传开始，再按需要进入裁剪、滤镜、标题和导出。</p>
           <label class="workspace-uploader" id="workspaceUploader">
             <input id="workspaceFileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/bmp,image/tiff,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.avif,.bmp,.dib,.tif,.tiff,.heic,.heif" />
             <span class="upload-icon">
@@ -98,11 +99,15 @@
               <span>替换图片</span>
             </label>
           </div>
-          <div class="workspace-note" id="workspaceUploadNote">所有处理都在浏览器本地完成。上传后可继续拖拽或粘贴图片替换当前作品。</div>
+          <div class="workspace-note" id="workspaceUploadNote">上传后可继续拖拽或粘贴图片替换当前作品。</div>
         </section>
 
         <section class="workspace-tool-panel" data-panel="crop">
           <h2>裁剪</h2>
+          <details class="usage-tip workspace-usage-tip">
+            <summary>裁剪说明</summary>
+            <p>尺寸调整会按固定宽高输出；比例裁剪只锁定裁剪框比例。</p>
+          </details>
           <div class="crop-mode-groups" aria-label="裁剪模式">
             <details class="crop-mode-group active" id="workspaceSizeGroup">
               <summary data-mode="size">
@@ -156,7 +161,7 @@
             <button class="secondary-action smart-crop-button" id="workspaceSmartCropButton" type="button" disabled>
               重新智能构图
             </button>
-            <p class="smart-crop-status" id="workspaceSmartCropStatus">智能构图在当前浏览器中完成，图片不会上传。</p>
+            <p class="smart-crop-status" id="workspaceSmartCropStatus">智能构图开启后，会自动尝试保留画面重点。</p>
           </div>
           <div class="download-row crop-actions workspace-crop-actions">
             <button id="applyCropButton" type="button" disabled>应用</button>
@@ -166,6 +171,7 @@
 
         <section class="workspace-tool-panel" data-panel="filter">
           <h2>滤镜</h2>
+          <p class="workspace-note">先选滤镜预设，再展开基础调色或高级调色微调。</p>
           <section class="workspace-filter-panel" data-workspace-collapsible>
             <button class="workspace-filter-title" type="button" aria-expanded="true">
               <span>滤镜</span><b>⌃</b>
@@ -202,6 +208,7 @@
 
         <section class="workspace-tool-panel" data-panel="title">
           <h2>标题</h2>
+          <p class="workspace-note">添加标题、副标题或正文后，选中文字再调整样式。</p>
           <div class="workspace-add-text">
             <button type="button" data-add-workspace-text="title">标题</button>
             <button type="button" data-add-workspace-text="subtitle">副标题</button>
@@ -289,7 +296,7 @@
       <section class="workspace-canvas-shell" id="workspaceStage" aria-label="画布区域">
         <div class="workspace-empty" id="workspaceEmpty">
           <strong>拖入图片开始编辑</strong>
-          <span>也可以粘贴或从左侧选择图片，处理过程仅在当前浏览器中完成</span>
+          <span>也可以粘贴或从左侧选择图片</span>
         </div>
         <canvas id="workspaceCanvas" aria-label="工作台画布"></canvas>
         <div class="crop-box workspace-crop-box" id="workspaceCropBox">

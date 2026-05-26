@@ -6,7 +6,7 @@
     <title>标题排版 - 图片工具箱</title>
     <meta
       name="description"
-      content="在线标题排版工具，支持标题、副标题和正文添加、换行宽度调整、字体和样式设置。中文标题由前端真实文字绘制，不上传图片。"
+      content="在线标题排版工具，支持标题、副标题和正文添加、换行宽度调整、字体和样式设置。中文标题由前端真实文字绘制。"
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://pictool.com.cn/title.html" />
@@ -15,7 +15,7 @@
     <meta property="og:title" content="标题排版 - 图片工具箱" />
     <meta
       property="og:description"
-      content="在线为图片添加标题、副标题和正文，支持字体、字号、颜色、对齐和间距调整，基础处理在浏览器本地完成。"
+      content="在线为图片添加标题、副标题和正文，支持字体、字号、颜色、对齐和间距调整。"
     />
     <meta property="og:url" content="https://pictool.com.cn/title.html" />
     <meta property="og:locale" content="zh_CN" />
@@ -23,7 +23,7 @@
     <meta name="twitter:title" content="标题排版 - 图片工具箱" />
     <meta
       name="twitter:description"
-      content="在线标题排版工具，支持标题、副标题和正文排版，中文标题由前端真实文字绘制，不上传图片。"
+      content="在线标题排版工具，支持标题、副标题和正文排版，中文标题由前端真实文字绘制。"
     />
     <link rel="stylesheet" href="styles.css" />
     <script type="application/ld+json">
@@ -35,13 +35,12 @@
         "operatingSystem": "Web",
         "isAccessibleForFree": true,
         "url": "https://pictool.com.cn/title.html",
-        "description": "在线标题排版工具，支持标题、副标题和正文添加，中文标题由前端真实文字绘制，基础处理在浏览器本地完成。",
+        "description": "在线标题排版工具，支持标题、副标题和正文添加，中文标题由前端真实文字绘制。",
         "inLanguage": "zh-CN",
         "featureList": [
           "支持标题、副标题、正文",
           "支持字体和样式设置",
-          "支持安全区和自动换行",
-          "处理过程不上传图片"
+          "支持安全区和自动换行"
         ]
       }
     </script>
@@ -54,7 +53,10 @@
 
       <section class="compressor editor-card" aria-labelledby="title-tool-heading">
         <div class="compressor-head">
-          <h1 id="title-tool-heading">标题排版</h1>
+          <div class="page-heading">
+            <h1 id="title-tool-heading">标题排版</h1>
+            <p class="page-brief">上传图片后添加标题、副标题或正文，拖动画布文字调整位置。</p>
+          </div>
         </div>
 
         <div class="title-layout">
@@ -74,6 +76,10 @@
                 <button type="button" data-add-text="subtitle">副标题</button>
                 <button type="button" data-add-text="body">正文</button>
               </div>
+              <details class="usage-tip">
+                <summary>文字编辑说明</summary>
+                <p>选中文字后可调整内容、字体、颜色和对齐；拖动右侧手柄可调整换行宽度。</p>
+              </details>
               <p class="helper-text">虚线框为标题安全区。拖动文字可调整位置，拖动右侧手柄可调整换行宽度，导出时不会显示。</p>
             </section>
 
@@ -166,7 +172,7 @@
               <div class="empty-state">
                 <span></span>
                 <p>上传图片后实时预览标题排版</p>
-                <small>可拖拽图片到此处</small>
+                <small>可选择、粘贴或拖拽图片到此处</small>
               </div>
               <canvas id="titleCanvas" aria-label="标题图预览画布"></canvas>
             </div>

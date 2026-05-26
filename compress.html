@@ -6,7 +6,7 @@
     <title>图片压缩 - 图片工具箱</title>
     <meta
       name="description"
-      content="在线图片压缩工具，支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片，提供压缩质量和最大宽高设置。图片在浏览器本地处理，不上传图片。"
+      content="在线图片压缩工具，支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片，提供压缩质量和最大宽高设置。"
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://pictool.com.cn/compress.html" />
@@ -15,7 +15,7 @@
     <meta property="og:title" content="图片压缩 - 图片工具箱" />
     <meta
       property="og:description"
-      content="在线压缩 JPG、PNG、WebP 图片，支持自定义质量和尺寸，基础处理在本地浏览器完成。"
+      content="在线压缩 JPG、PNG、WebP 图片，支持自定义质量和尺寸。"
     />
     <meta property="og:url" content="https://pictool.com.cn/compress.html" />
     <meta property="og:locale" content="zh_CN" />
@@ -23,7 +23,7 @@
     <meta name="twitter:title" content="图片压缩 - 图片工具箱" />
     <meta
       name="twitter:description"
-      content="在线压缩图片，支持质量和尺寸调节，处理过程在浏览器本地完成，不上传图片。"
+      content="在线压缩图片，支持质量和尺寸调节。"
     />
     <link rel="stylesheet" href="styles.css" />
     <script type="application/ld+json">
@@ -35,14 +35,13 @@
         "operatingSystem": "Web",
         "isAccessibleForFree": true,
         "url": "https://pictool.com.cn/compress.html",
-        "description": "在线图片压缩工具，支持 JPG、PNG、WebP，自定义压缩质量和最大宽高，基础处理在浏览器本地完成。",
+        "description": "在线图片压缩工具，支持 JPG、PNG、WebP，自定义压缩质量和最大宽高。",
         "inLanguage": "zh-CN",
         "featureList": [
           "支持批量压缩",
           "支持 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF",
           "支持压缩质量调节",
-          "支持最大宽度和高度设置",
-          "处理过程不上传图片"
+          "支持最大宽度和高度设置"
         ]
       }
     </script>
@@ -55,7 +54,10 @@
 
       <section class="compressor" id="compressor" aria-labelledby="compressor-title">
         <div class="compressor-head">
-          <h1 id="compressor-title">图片压缩</h1>
+          <div class="page-heading">
+            <h1 id="compressor-title">图片压缩</h1>
+            <p class="page-brief">拖拽、粘贴或选择图片，按需要调整质量和尺寸后下载。</p>
+          </div>
         </div>
 
         <div class="compressor-grid">
@@ -72,6 +74,11 @@
               <small id="dropzoneHint">支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片</small>
               <span class="choose-button" id="chooseButton">选择图片（可多选）</span>
             </label>
+
+            <details class="usage-tip">
+              <summary>压缩设置说明</summary>
+              <p>质量越低体积通常越小；保持原图尺寸开启时不会改变宽高。</p>
+            </details>
 
             <div class="settings" aria-label="压缩设置">
               <label>
@@ -133,6 +140,7 @@
               <div class="empty-state">
                 <span></span>
                 <p>上传图片后查看压缩前后效果</p>
+                <small>拖动分割线对比压缩效果</small>
               </div>
               <img id="originalPreview" alt="原图预览" />
               <img id="compressedPreview" alt="压缩后预览" />

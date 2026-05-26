@@ -6,7 +6,7 @@
     <title>图片裁剪 - 图片工具箱</title>
     <meta
       name="description"
-      content="在线图片裁剪工具，支持自定义尺寸、公众号首图、网站大图和常用比例裁剪。图片在浏览器本地处理，不上传图片。"
+      content="在线图片裁剪工具，支持自定义尺寸、公众号首图、网站大图和常用比例裁剪。"
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://pictool.com.cn/crop.html" />
@@ -23,7 +23,7 @@
     <meta name="twitter:title" content="图片裁剪 - 图片工具箱" />
     <meta
       name="twitter:description"
-      content="在线裁剪图片，支持公众号首图、网站大图和常用比例，全部在浏览器本地处理。"
+      content="在线裁剪图片，支持公众号首图、网站大图和常用比例。"
     />
     <link rel="stylesheet" href="styles.css" />
     <script type="application/ld+json">
@@ -35,13 +35,12 @@
         "operatingSystem": "Web",
         "isAccessibleForFree": true,
         "url": "https://pictool.com.cn/crop.html",
-        "description": "在线图片裁剪工具，支持自定义尺寸、公众号首图、网站大图和常见比例裁剪，基础处理在浏览器本地完成。",
+        "description": "在线图片裁剪工具，支持自定义尺寸、公众号首图、网站大图和常见比例裁剪。",
         "inLanguage": "zh-CN",
         "featureList": [
           "支持尺寸预设",
           "支持比例裁剪",
-          "支持 PNG 和 JPG 导出",
-          "处理过程不上传图片"
+          "支持 PNG 和 JPG 导出"
         ]
       }
     </script>
@@ -54,7 +53,10 @@
 
       <section class="compressor editor-card" aria-labelledby="crop-title">
         <div class="compressor-head">
-          <h1 id="crop-title">图片裁剪</h1>
+          <div class="page-heading">
+            <h1 id="crop-title">图片裁剪</h1>
+            <p class="page-brief">选择图片后，拖动裁剪框或选择预设尺寸，再应用并下载。</p>
+          </div>
         </div>
 
         <div class="crop-layout">
@@ -98,6 +100,11 @@
               </details>
             </div>
 
+            <details class="usage-tip">
+              <summary>裁剪模式说明</summary>
+              <p>尺寸调整会按指定宽高输出；比例裁剪只锁定比例，可继续拖动裁剪框。</p>
+            </details>
+
             <div class="dimension-row crop-dimensions">
               <label>
                 <span>宽度</span>
@@ -120,7 +127,7 @@
               <button class="secondary-action smart-crop-button" id="smartCropButton" type="button" disabled>
                 重新智能构图
               </button>
-              <p class="smart-crop-status" id="smartCropStatus">智能构图在当前浏览器中完成，图片不会上传。</p>
+              <p class="smart-crop-status" id="smartCropStatus">智能构图开启后，会自动尝试保留画面重点。</p>
             </div>
 
             <div class="download-row crop-actions">
@@ -144,7 +151,7 @@
               <div class="empty-state">
                 <span></span>
                 <p>上传图片后开始裁剪</p>
-                <small>可拖拽图片到此处</small>
+                <small>可选择、粘贴或拖拽图片到此处</small>
               </div>
               <img id="cropImage" alt="待裁剪图片" />
               <div class="crop-box" id="cropBox">

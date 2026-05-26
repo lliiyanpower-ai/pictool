@@ -158,7 +158,7 @@ bindWorkspaceEvents();
 syncWorkspaceExportDock();
 syncWorkspaceSmartCropControls();
 workspaceSmartCropStatus.textContent = state.smartCropEnabled
-  ? "智能构图在当前浏览器中完成，图片不会上传。"
+  ? "智能构图开启后，会自动尝试保留画面重点。"
   : "智能构图已关闭，可继续手动裁剪。";
 setActiveTool(new URLSearchParams(location.search).get("tool") || "upload");
 renderWorkspace();
@@ -250,7 +250,7 @@ function bindWorkspaceEvents() {
       return;
     }
 
-    workspaceSmartCropStatus.textContent = "智能构图在当前浏览器中完成，图片不会上传。";
+    workspaceSmartCropStatus.textContent = "智能构图开启后，会自动尝试保留画面重点。";
     if (state.image) {
       recordHistory();
       state.hasManualCrop = false;
@@ -486,7 +486,7 @@ function loadWorkspaceFile(file, source = "select") {
   }
   workspaceStatus.textContent = state.image ? "正在替换图片..." : "正在读取图片...";
   workspaceUploadTitle.textContent = "正在读取图片";
-  workspaceUploadHint.textContent = "图片会在当前浏览器中处理，不会上传服务器。";
+  workspaceUploadHint.textContent = "正在读取图片，请稍候。";
   workspaceStage.classList.remove("dragging-file");
   workspaceUploader.classList.remove("dragging-file");
   const hadImage = !!state.image;
@@ -571,7 +571,7 @@ function updateUploadState() {
   workspaceUploadAction.textContent = hasImage ? "替换图片" : "选择图片";
   workspaceUploadNote.textContent = hasImage
     ? "当前图片已载入。也可以把新图片拖到画布，或直接粘贴图片替换。"
-    : "所有处理都在浏览器本地完成。上传后可继续拖拽或粘贴图片替换当前作品。";
+    : "上传后可继续拖拽或粘贴图片替换当前作品。";
 }
 
 function getImageFileFromTransfer(transfer) {
@@ -924,7 +924,7 @@ function resetCrop() {
   workspaceCropWidth.value = state.image.naturalWidth;
   workspaceCropHeight.value = state.image.naturalHeight;
   workspaceSmartCropStatus.textContent = state.smartCropEnabled
-    ? "智能构图在当前浏览器中完成，图片不会上传。"
+    ? "智能构图开启后，会自动尝试保留画面重点。"
     : "智能构图已关闭，可继续手动裁剪。";
   syncWorkspaceModeGroups();
   updateWorkspaceModeSummaries();

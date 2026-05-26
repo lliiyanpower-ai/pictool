@@ -6,7 +6,7 @@
     <title>图片滤镜 - 图片工具箱</title>
     <meta
       name="description"
-      content="在线图片滤镜工具，支持滤镜预设、基础调色和高级调色。图片在浏览器本地实时处理，不上传图片。"
+      content="在线图片滤镜工具，支持滤镜预设、基础调色和高级调色。"
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://pictool.com.cn/filter.html" />
@@ -15,7 +15,7 @@
     <meta property="og:title" content="图片滤镜 - 图片工具箱" />
     <meta
       property="og:description"
-      content="在线图片滤镜和调色工具，支持多种滤镜预设、基础调色和高级调色，处理过程在本地浏览器完成。"
+      content="在线图片滤镜和调色工具，支持多种滤镜预设、基础调色和高级调色。"
     />
     <meta property="og:url" content="https://pictool.com.cn/filter.html" />
     <meta property="og:locale" content="zh_CN" />
@@ -23,7 +23,7 @@
     <meta name="twitter:title" content="图片滤镜 - 图片工具箱" />
     <meta
       name="twitter:description"
-      content="在线图片滤镜工具，支持风格滤镜、基础调色和高级调色，本地处理不上传图片。"
+      content="在线图片滤镜工具，支持风格滤镜、基础调色和高级调色。"
     />
     <link rel="stylesheet" href="styles.css" />
     <script type="application/ld+json">
@@ -35,13 +35,12 @@
         "operatingSystem": "Web",
         "isAccessibleForFree": true,
         "url": "https://pictool.com.cn/filter.html",
-        "description": "在线图片滤镜工具，支持滤镜预设、基础调色和高级调色，实时预览效果，基础处理在浏览器本地完成。",
+        "description": "在线图片滤镜工具，支持滤镜预设、基础调色和高级调色，实时预览效果。",
         "inLanguage": "zh-CN",
         "featureList": [
           "支持滤镜预设",
           "支持基础调色",
-          "支持高级调色",
-          "处理过程不上传图片"
+          "支持高级调色"
         ]
       }
     </script>
@@ -54,7 +53,10 @@
 
       <section class="compressor editor-card" aria-labelledby="filter-title">
         <div class="compressor-head">
-          <h1 id="filter-title">图片滤镜</h1>
+          <div class="page-heading">
+            <h1 id="filter-title">图片滤镜</h1>
+            <p class="page-brief">选择图片后套用滤镜，也可以展开调色面板做细节调整。</p>
+          </div>
         </div>
 
         <div class="filter-layout">
@@ -63,6 +65,11 @@
               <input id="filterFileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/bmp,image/tiff,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.avif,.bmp,.dib,.tif,.tiff,.heic,.heif" />
               <span>选择图片</span>
             </label>
+
+            <details class="usage-tip">
+              <summary>调色说明</summary>
+              <p>先选滤镜预设，再展开基础调色或高级调色微调；下载会应用当前预览效果。</p>
+            </details>
 
             <section class="filter-panel" data-collapsible>
               <button class="filter-panel-title" type="button" aria-expanded="true">
@@ -116,7 +123,7 @@
               <div class="empty-state">
                 <span></span>
                 <p>上传图片后实时预览效果</p>
-                <small>可拖拽图片到此处</small>
+                <small>可选择、粘贴或拖拽图片到此处</small>
               </div>
               <canvas id="filterCanvas" aria-label="滤镜预览画布"></canvas>
             </div>

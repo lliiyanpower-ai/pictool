@@ -89,6 +89,13 @@ svg {
   padding: 94px 0 72px;
 }
 
+.home-shell {
+  display: flex;
+  align-items: center;
+  min-height: 100svh;
+  padding: clamp(24px, 4vh, 56px) 0;
+}
+
 .hero {
   min-height: min(760px, calc(100vh - 48px));
   display: flex;
@@ -96,9 +103,18 @@ svg {
   justify-content: center;
 }
 
+.home-shell .hero {
+  width: 100%;
+  min-height: 0;
+}
+
 .hero-copy {
   margin-bottom: 42px;
   padding-left: 6px;
+}
+
+.home-shell .hero-copy {
+  margin-bottom: clamp(20px, 3vh, 34px);
 }
 
 .hero-copy h1 {
@@ -138,10 +154,18 @@ svg {
   align-items: stretch;
 }
 
+.home-shell .tool-layout {
+  gap: clamp(24px, 3vw, 40px);
+}
+
 .tool-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 22px;
+}
+
+.home-shell .tool-grid {
+  gap: clamp(14px, 2.4vh, 20px);
 }
 
 .tool-card {
@@ -160,6 +184,11 @@ svg {
   overflow: hidden;
 }
 
+.home-shell .tool-card {
+  min-height: clamp(218px, 28vh, 264px);
+  padding: clamp(24px, 3.8vh, 34px) clamp(28px, 3vw, 40px);
+}
+
 .tool-card:hover,
 .tool-card:focus-visible {
   transform: translateY(-4px);
@@ -176,6 +205,11 @@ svg {
   font-weight: 900;
 }
 
+.home-shell .tool-card strong {
+  margin-top: 18px;
+  font-size: 22px;
+}
+
 .tool-card small {
   display: block;
   margin-top: 14px;
@@ -183,6 +217,11 @@ svg {
   font-size: 15px;
   line-height: 1.65;
   font-weight: 600;
+}
+
+.home-shell .tool-card small {
+  margin-top: 10px;
+  line-height: 1.55;
 }
 
 .orb {
@@ -193,6 +232,12 @@ svg {
   height: 102px;
   border-radius: 50%;
   font-size: 48px;
+}
+
+.home-shell .orb {
+  width: 90px;
+  height: 90px;
+  font-size: 42px;
 }
 
 .orb svg {
@@ -234,6 +279,12 @@ svg {
   font-size: 21px;
 }
 
+.home-shell .mini-badge {
+  width: 34px;
+  height: 34px;
+  font-size: 18px;
+}
+
 .mini-badge svg {
   stroke-width: 2.6;
 }
@@ -249,6 +300,14 @@ svg {
   border-radius: 50%;
   font-size: 27px;
   font-weight: 800;
+}
+
+.home-shell .arrow {
+  right: 24px;
+  bottom: 24px;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
 }
 
 .arrow-green {
@@ -283,6 +342,13 @@ svg {
     linear-gradient(135deg, #8d61f5 0%, #4f56ff 46%, #245df0 100%);
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+
+.home-shell .workspace-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(450px, 59vh, 548px);
+  padding: clamp(28px, 4vh, 38px) clamp(30px, 3vw, 40px);
 }
 
 .workspace-panel::before,
@@ -341,6 +407,11 @@ svg {
   letter-spacing: 0;
 }
 
+.home-shell .workspace-panel h2 {
+  margin: clamp(24px, 4vh, 34px) 0 12px;
+  font-size: clamp(34px, 5vh, 46px);
+}
+
 .workspace-panel p {
   margin: 0;
   color: rgba(255,255,255,0.9);
@@ -349,10 +420,18 @@ svg {
   font-weight: 700;
 }
 
+.home-shell .workspace-panel p {
+  line-height: 1.65;
+}
+
 .panel-rule {
   height: 1px;
   margin: 40px 0 34px;
   background: rgba(255,255,255,0.22);
+}
+
+.home-shell .panel-rule {
+  margin: clamp(24px, 4vh, 34px) 0 clamp(20px, 3vh, 28px);
 }
 
 .panel-tools {
@@ -372,9 +451,21 @@ svg {
   text-align: center;
 }
 
+.home-shell .panel-tools {
+  gap: 16px;
+}
+
+.home-shell .panel-tools span {
+  gap: 10px;
+}
+
 .panel-tools svg {
   font-size: 38px;
   stroke-width: 2.2;
+}
+
+.home-shell .panel-tools svg {
+  font-size: 32px;
 }
 
 .primary-action {
@@ -395,6 +486,15 @@ svg {
   font-weight: 900;
   text-decoration: none;
   transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.home-shell .primary-action {
+  min-width: min(292px, 100%);
+  height: 58px;
+  margin-top: auto;
+  border-radius: 12px;
+  gap: 42px;
+  font-size: 18px;
 }
 
 .primary-action:hover,
@@ -475,6 +575,21 @@ svg {
   margin-bottom: 18px;
 }
 
+.page-heading {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.page-brief {
+  max-width: 680px;
+  margin: 0;
+  color: #657089;
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 800;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: var(--blue);
@@ -496,6 +611,45 @@ svg {
   background: #dff7ed;
   font-size: 14px;
   font-weight: 800;
+}
+
+.usage-tip {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  border: 1px solid rgba(78, 96, 156, 0.12);
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.usage-tip summary {
+  min-height: 34px;
+  padding: 0 10px;
+  color: #31405d;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 34px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.usage-tip summary:focus-visible {
+  border-radius: 10px;
+  outline: 3px solid rgba(47, 97, 244, 0.14);
+  outline-offset: -3px;
+}
+
+.usage-tip p {
+  margin: 0;
+  padding: 0 10px 10px;
+  color: #657089;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 800;
+}
+
+.usage-tip + .settings {
+  margin-top: 14px;
 }
 
 .compressor-grid {
@@ -892,6 +1046,20 @@ input[type="range"] {
   background:
     linear-gradient(135deg, rgba(47,97,244,0.2), rgba(53,199,119,0.18)),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='82' height='82' viewBox='0 0 82 82'%3E%3Cg fill='none' stroke='%232f61f4' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='19' y='22' width='44' height='36' rx='4'/%3E%3Cpath d='m23 54 14-16 10 11 6-7 8 10'/%3E%3Ccircle cx='52' cy='32' r='4'/%3E%3C/g%3E%3C/svg%3E") center / 62px 62px no-repeat;
+}
+
+.empty-state p,
+.empty-state small {
+  max-width: min(320px, calc(100% - 28px));
+  margin: 0;
+  text-align: center;
+}
+
+.empty-state small {
+  color: #8390a8;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 800;
 }
 
 .preview-stage.has-image .empty-state {
@@ -1589,6 +1757,15 @@ input[type="range"] {
   color: #8390a8;
   font-size: 13px;
   font-weight: 800;
+}
+
+.crop-sidebar > .usage-tip,
+.filter-sidebar > .usage-tip {
+  margin-top: 0;
+}
+
+.workspace-usage-tip {
+  margin-top: 0;
 }
 
 .crop-stage.dragging-file {
@@ -2475,12 +2652,135 @@ input[type="range"] {
     padding-top: 56px;
   }
 
+  .home-shell {
+    padding: clamp(24px, 4vh, 36px) 0;
+  }
+
   .tool-layout {
     grid-template-columns: 1fr;
   }
 
   .workspace-panel {
     min-height: 520px;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1120px) {
+  .home-shell {
+    padding: 20px 0;
+  }
+
+  .home-shell .hero-copy {
+    margin-bottom: 18px;
+  }
+
+  .home-shell .hero-copy h1 {
+    font-size: 44px;
+  }
+
+  .home-shell .hero-copy h1 i {
+    height: 46px;
+  }
+
+  .home-shell .hero-copy p {
+    margin-top: 12px;
+    font-size: 15px;
+  }
+
+  .home-shell .tool-layout {
+    grid-template-columns: minmax(390px, 1fr) minmax(390px, 1fr);
+    gap: 16px;
+  }
+
+  .home-shell .tool-grid {
+    gap: 14px;
+  }
+
+  .home-shell .tool-card {
+    min-height: 0;
+    padding: 22px 20px;
+  }
+
+  .home-shell .orb {
+    width: 74px;
+    height: 74px;
+    font-size: 34px;
+  }
+
+  .home-shell .mini-badge {
+    width: 28px;
+    height: 28px;
+    border-width: 2px;
+    font-size: 15px;
+  }
+
+  .home-shell .tool-card strong {
+    margin-top: 14px;
+    font-size: 20px;
+  }
+
+  .home-shell .tool-card small {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .home-shell .arrow {
+    right: 18px;
+    bottom: 18px;
+    width: 34px;
+    height: 34px;
+    font-size: 21px;
+  }
+
+  .home-shell .workspace-panel {
+    min-height: 0;
+    padding: 24px 26px;
+  }
+
+  .home-shell .panel-icon {
+    width: 52px;
+    height: 52px;
+    grid-template-columns: repeat(2, 15px);
+    gap: 7px;
+  }
+
+  .home-shell .panel-icon span {
+    width: 15px;
+    height: 15px;
+  }
+
+  .home-shell .workspace-panel h2 {
+    margin-top: 24px;
+    font-size: 34px;
+  }
+
+  .home-shell .workspace-panel p {
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .home-shell .panel-rule {
+    margin: 22px 0 18px;
+  }
+
+  .home-shell .panel-tools {
+    gap: 12px;
+  }
+
+  .home-shell .panel-tools span {
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .home-shell .panel-tools svg {
+    font-size: 28px;
+  }
+
+  .home-shell .primary-action {
+    height: 52px;
+    gap: 34px;
+    font-size: 16px;
   }
 }
 
@@ -2546,14 +2846,14 @@ input[type="range"] {
   }
 
   .compressor-grid {
-    grid-template-columns: 220px minmax(250px, 1fr);
+    grid-template-columns: 1fr;
     gap: 14px;
   }
 
   .crop-layout,
   .filter-layout,
   .title-layout {
-    grid-template-columns: 220px minmax(250px, 1fr);
+    grid-template-columns: 1fr;
     gap: 14px;
   }
 

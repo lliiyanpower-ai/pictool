@@ -137,7 +137,7 @@ smartCropToggle.addEventListener("change", () => {
     return;
   }
 
-  smartCropStatus.textContent = "智能构图在当前浏览器中完成，图片不会上传。";
+  smartCropStatus.textContent = "智能构图开启后，会自动尝试保留画面重点。";
   if (sourceImage) {
     hasManualCrop = false;
     beginCropEdit();
@@ -1303,7 +1303,7 @@ function resetCrop() {
   cropOutputSize.textContent = "--";
   cropStatusText.textContent = "等待上传图片";
   smartCropStatus.textContent = smartCropEnabled
-    ? "智能构图在当前浏览器中完成，图片不会上传。"
+    ? "智能构图开启后，会自动尝试保留画面重点。"
     : "智能构图已关闭，可继续手动裁剪。";
   updateSmartCropControls();
 }
