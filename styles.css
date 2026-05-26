@@ -3799,12 +3799,23 @@ input[type="range"] {
   font-size: 22px;
 }
 
-#workspaceCanvas {
+#workspaceCanvas,
+#workspaceExportPreview {
   display: none;
   border-radius: 8px;
   box-shadow: 0 20px 60px rgba(17, 24, 46, 0.18);
+}
+
+#workspaceCanvas {
   touch-action: none;
   cursor: default;
+}
+
+#workspaceExportPreview {
+  max-width: none;
+  max-height: none;
+  user-select: none;
+  pointer-events: none;
 }
 
 .workspace-crop-box {
