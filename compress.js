@@ -124,6 +124,10 @@ batchZipButton.addEventListener("click", downloadBatchZip);
 batchStrip.addEventListener("click", handleBatchStripClick);
 hydrateCropTransfer();
 
+function waitForNextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 async function loadFiles(files) {
   const imageFiles = [...files].filter(isImageFile);
   if (!imageFiles.length) {
@@ -227,7 +231,10 @@ async function selectBatchItem(id, options = {}) {
       statusText.textContent = `已载入：${formatDisplayFileName(item.file.name)}`;
     }
     renderBatchPanel();
-    if (options.autoCompress) await compressImage(item.id);
+    if (options.autoCompress) {
+      await waitForNextFrame();
+      if (selectedBatchId === item.id) await compressImage(item.id);
+    }
   } catch (error) {
     item.status = "failed";
     item.error = "图片读取失败。相机 HEIC/HEIF 或部分 TIFF 需要浏览器支持，必要时请先转为 JPG 或 PNG。";

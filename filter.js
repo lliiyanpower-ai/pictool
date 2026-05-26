@@ -33,6 +33,8 @@ const toast = document.querySelector("#toast");
 
 const state = makeFilterState(basicControlDefs, advancedTabs);
 const controlInputs = new Map();
+const FILTER_ESTIMATE_MAX_PIXELS = 1200000;
+const FILTER_ESTIMATE_DELAY = 320;
 
 let activePreset = "none";
 let activeAdvancedTab = "light";
@@ -42,6 +44,9 @@ let sourceObjectUrl = "";
 let previewBitmap = null;
 let renderToken = 0;
 let estimateToken = 0;
+let estimateTimer = 0;
+let isEstimating = false;
+let needsEstimate = false;
 let outputBlob = null;
 let outputObjectUrl = "";
 
@@ -115,7 +120,8 @@ filterFormatSelect.addEventListener("change", () => {
     tool: "filter",
     format: filterFormatSelect.value
   });
-  updateOutputEstimate();
+  clearOutputCache();
+  scheduleOutputEstimate(0);
 });
 window.addEventListener("resize", scheduleRender);
 
@@ -228,7 +234,6 @@ function loadFile(file) {
     filterToCompressButton.disabled = false;
     filterStatusText.textContent = `已载入：${file.name}`;
     scheduleRender();
-    updateOutputEstimate();
   };
   image.onerror = () => {
     trackEvent("upload_failed", {
@@ -262,7 +267,7 @@ function scheduleRender() {
 function renderPreview() {
   renderToCanvas(filterCanvas, previewBitmap);
   fitCanvasToStage();
-  updateOutputEstimate();
+  markOutputEstimateDirty();
 }
 
 function fitCanvasToStage() {
@@ -274,8 +279,17 @@ function fitCanvasToStage() {
   filterCanvas.style.height = `${Math.round(filterCanvas.height * scale)}px`;
 }
 
-function renderToCanvas(targetCanvas, inputCanvas) {
-  renderFilteredCanvas(targetCanvas, inputCanvas, mergedValues());
+function renderToCanvas(targetCanvas, inputCanvas, forcedOutput = null) {
+  if (!forcedOutput) {
+    renderFilteredCanvas(targetCanvas, inputCanvas, mergedValues());
+    return;
+  }
+
+  const sampleCanvas = document.createElement("canvas");
+  sampleCanvas.width = forcedOutput.width;
+  sampleCanvas.height = forcedOutput.height;
+  sampleCanvas.getContext("2d").drawImage(inputCanvas, 0, 0, forcedOutput.width, forcedOutput.height);
+  renderFilteredCanvas(targetCanvas, sampleCanvas, mergedValues());
 }
 
 function mergedValues() {
@@ -299,8 +313,38 @@ async function makeOutputBlob() {
   return canvasToBlob(outputCanvas, mimeType, quality);
 }
 
+async function makeEstimateBlob() {
+  if (!sourceImage) return null;
+  const pixels = sourceImage.naturalWidth * sourceImage.naturalHeight;
+  if (pixels <= FILTER_ESTIMATE_MAX_PIXELS) return makeOutputBlob();
+
+  const scale = Math.sqrt(FILTER_ESTIMATE_MAX_PIXELS / pixels);
+  const sampleSize = {
+    width: Math.max(1, Math.round(sourceImage.naturalWidth * scale)),
+    height: Math.max(1, Math.round(sourceImage.naturalHeight * scale))
+  };
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = sampleSize.width;
+  sourceCanvas.height = sampleSize.height;
+  sourceCanvas.getContext("2d").drawImage(sourceImage, 0, 0, sampleSize.width, sampleSize.height);
+
+  const outputCanvas = document.createElement("canvas");
+  renderToCanvas(outputCanvas, sourceCanvas);
+  const mimeType = filterFormatSelect.value;
+  const quality = mimeType === "image/jpeg" ? 0.94 : undefined;
+  const sampleBlob = await canvasToBlob(outputCanvas, mimeType, quality);
+  if (!sampleBlob) return null;
+
+  return {
+    size: Math.max(1, Math.round(sampleBlob.size / (sampleSize.width * sampleSize.height) * pixels)),
+    type: sampleBlob.type
+  };
+}
+
 async function ensureOutputBlob() {
   if (outputBlob) return outputBlob;
+  window.clearTimeout(estimateTimer);
+  estimateTimer = 0;
   outputBlob = await makeOutputBlob();
   if (!outputBlob) {
     showToast("导出失败，请换一张图片试试。");
@@ -312,18 +356,50 @@ async function ensureOutputBlob() {
   return outputBlob;
 }
 
+function markOutputEstimateDirty() {
+  if (!sourceImage) return;
+  if (isEstimating) {
+    needsEstimate = true;
+    return;
+  }
+  needsEstimate = true;
+  clearOutputCache();
+  scheduleOutputEstimate();
+}
+
+function scheduleOutputEstimate(delay = FILTER_ESTIMATE_DELAY) {
+  window.clearTimeout(estimateTimer);
+  if (!sourceImage) {
+    estimateTimer = 0;
+    return;
+  }
+  estimateTimer = window.setTimeout(() => {
+    estimateTimer = 0;
+    updateOutputEstimate();
+  }, delay);
+}
+
 async function updateOutputEstimate() {
   if (!sourceImage) {
     filterOutputSize.textContent = "--";
     return;
   }
   const token = ++estimateToken;
-  clearOutputCache(false);
-  const blob = await makeOutputBlob();
-  if (token !== estimateToken) return;
-  outputBlob = blob;
+  window.clearTimeout(estimateTimer);
+  estimateTimer = 0;
   if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
-  outputObjectUrl = blob ? URL.createObjectURL(blob) : "";
+  outputObjectUrl = "";
+  outputBlob = null;
+  filterOutputSize.textContent = "计算中";
+  isEstimating = true;
+  needsEstimate = false;
+  const blob = await makeEstimateBlob();
+  if (token !== estimateToken) return;
+  isEstimating = false;
+  if (needsEstimate) {
+    scheduleOutputEstimate();
+    return;
+  }
   if (blob) filterOutputSize.textContent = formatBytes(blob.size);
 }
 
@@ -356,6 +432,9 @@ async function sendToCompress() {
 
 function clearOutputCache(invalidateEstimate = true) {
   if (invalidateEstimate) estimateToken++;
+  window.clearTimeout(estimateTimer);
+  estimateTimer = 0;
+  isEstimating = false;
   outputBlob = null;
   if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
   outputObjectUrl = "";

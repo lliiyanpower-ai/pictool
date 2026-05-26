@@ -37,12 +37,19 @@ const titleToCompressButton = document.querySelector("#titleToCompressButton");
 const titleStatusText = document.querySelector("#titleStatusText");
 const toast = document.querySelector("#toast");
 
+const TITLE_PREVIEW_MAX_PIXELS = 2200000;
+const TITLE_ESTIMATE_MAX_PIXELS = 1200000;
+const TITLE_ESTIMATE_DELAY = 320;
+
 let sourceImage = null;
 let sourceFileName = "title-image";
 let sourceObjectUrl = "";
 let outputBlob = null;
 let outputObjectUrl = "";
 let estimateToken = 0;
+let estimateTimer = 0;
+let isEstimating = false;
+let needsEstimate = false;
 let textLayers = [];
 let selectedTextId = "";
 let layerMetrics = [];
@@ -121,13 +128,17 @@ function bindEvents() {
     renderPreview();
   });
 
-  titleFormatSelect.addEventListener("input", renderPreview);
+  titleFormatSelect.addEventListener("input", () => {
+    clearOutputCache();
+    scheduleOutputEstimate();
+  });
   titleFormatSelect.addEventListener("change", () => {
     trackEvent("export_format_selected", {
       tool: "title",
       format: titleFormatSelect.value
     });
-    renderPreview();
+    clearOutputCache();
+    scheduleOutputEstimate(0);
   });
 
   titleImageInput.addEventListener("change", () => {
@@ -332,11 +343,11 @@ function renderPreview() {
   renderCanvas(titleCanvas, true);
   fitCanvas();
   updateInspector();
-  updateOutputEstimate();
+  markOutputEstimateDirty();
 }
 
-function renderCanvas(canvas, includeControls) {
-  const { width, height } = getCanvasSize();
+function renderCanvas(canvas, includeControls, forcedSize = null) {
+  const { width, height } = forcedSize || getCanvasSize(includeControls);
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -350,18 +361,14 @@ function renderCanvas(canvas, includeControls) {
     layerMetrics.push(metrics);
   });
 
-  if (includeControls) {
+  if (includeControls && sourceImage) {
     drawSafetyZone(ctx, width, height);
   }
 }
 
 function drawImageBase(ctx, width, height) {
   if (!sourceImage) {
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, "#dfe8ff");
-    gradient.addColorStop(1, "#f8fbff");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+    ctx.clearRect(0, 0, width, height);
     return;
   }
 
@@ -538,14 +545,25 @@ function updateTitleCount(layer = getSelectedLayer()) {
   titleCountHint.classList.toggle("warning", count > 36);
 }
 
-function getCanvasSize() {
+function getCanvasSize(forPreview = false) {
   if (sourceImage) {
-    return {
+    const sourceSize = {
       width: sourceImage.naturalWidth,
       height: sourceImage.naturalHeight
     };
+    return forPreview ? getBoundedCanvasSize(sourceSize, TITLE_PREVIEW_MAX_PIXELS) : sourceSize;
   }
   return { width: 1920, height: 960 };
+}
+
+function getBoundedCanvasSize(size, maxPixels) {
+  const pixels = size.width * size.height;
+  if (pixels <= maxPixels) return size;
+  const scale = Math.sqrt(maxPixels / pixels);
+  return {
+    width: Math.max(1, Math.round(size.width * scale)),
+    height: Math.max(1, Math.round(size.height * scale))
+  };
 }
 
 function startTextDrag(event) {
@@ -677,23 +695,55 @@ async function makeOutputBlob() {
   return canvasToBlob(outputCanvas, mimeType, quality);
 }
 
+async function makeEstimateBlob() {
+  if (!sourceImage) return null;
+  const outputSize = getCanvasSize(false);
+  const sampleSize = getBoundedCanvasSize(outputSize, TITLE_ESTIMATE_MAX_PIXELS);
+  if (sampleSize.width === outputSize.width && sampleSize.height === outputSize.height) return makeOutputBlob();
+
+  const outputCanvas = document.createElement("canvas");
+  renderCanvas(outputCanvas, false, sampleSize);
+  const mimeType = titleFormatSelect.value;
+  const quality = mimeType === "image/jpeg" ? 0.94 : undefined;
+  const sampleBlob = await canvasToBlob(outputCanvas, mimeType, quality);
+  if (!sampleBlob) return null;
+
+  const outputPixels = outputSize.width * outputSize.height;
+  const samplePixels = sampleSize.width * sampleSize.height;
+  return {
+    size: Math.max(1, Math.round(sampleBlob.size / samplePixels * outputPixels)),
+    type: sampleBlob.type
+  };
+}
+
 async function updateOutputEstimate() {
   if (!sourceImage) {
     titleOutputSize.textContent = "--";
     return;
   }
   const token = ++estimateToken;
-  clearOutputCache(false);
-  const blob = await makeOutputBlob();
-  if (token !== estimateToken) return;
-  outputBlob = blob;
+  window.clearTimeout(estimateTimer);
+  estimateTimer = 0;
   if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
-  outputObjectUrl = blob ? URL.createObjectURL(blob) : "";
+  outputObjectUrl = "";
+  outputBlob = null;
+  titleOutputSize.textContent = "计算中";
+  isEstimating = true;
+  needsEstimate = false;
+  const blob = await makeEstimateBlob();
+  if (token !== estimateToken) return;
+  isEstimating = false;
+  if (needsEstimate) {
+    scheduleOutputEstimate();
+    return;
+  }
   titleOutputSize.textContent = blob ? formatBytes(blob.size) : "--";
 }
 
 async function ensureOutputBlob() {
   if (outputBlob) return outputBlob;
+  window.clearTimeout(estimateTimer);
+  estimateTimer = 0;
   outputBlob = await makeOutputBlob();
   if (!outputBlob) {
     showToast("导出失败，请重试。");
@@ -703,6 +753,29 @@ async function ensureOutputBlob() {
   outputObjectUrl = URL.createObjectURL(outputBlob);
   titleOutputSize.textContent = formatBytes(outputBlob.size);
   return outputBlob;
+}
+
+function markOutputEstimateDirty() {
+  if (!sourceImage) return;
+  if (isEstimating) {
+    needsEstimate = true;
+    return;
+  }
+  needsEstimate = true;
+  clearOutputCache();
+  scheduleOutputEstimate();
+}
+
+function scheduleOutputEstimate(delay = TITLE_ESTIMATE_DELAY) {
+  window.clearTimeout(estimateTimer);
+  if (!sourceImage) {
+    estimateTimer = 0;
+    return;
+  }
+  estimateTimer = window.setTimeout(() => {
+    estimateTimer = 0;
+    updateOutputEstimate();
+  }, delay);
 }
 
 async function downloadTitle() {
@@ -734,6 +807,9 @@ async function sendToCompress() {
 
 function clearOutputCache(invalidateEstimate = true) {
   if (invalidateEstimate) estimateToken++;
+  window.clearTimeout(estimateTimer);
+  estimateTimer = 0;
+  isEstimating = false;
   outputBlob = null;
   if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
   outputObjectUrl = "";

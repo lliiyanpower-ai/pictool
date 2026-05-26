@@ -64,29 +64,38 @@
               <span>选择图片</span>
             </label>
 
-            <div class="segment-tabs" role="tablist" aria-label="裁剪模式">
-              <button class="active" type="button" data-mode="size">尺寸调整</button>
-              <button type="button" data-mode="ratio">比例裁剪</button>
-            </div>
+            <div class="crop-mode-groups" aria-label="裁剪模式">
+              <details class="crop-mode-group active" id="sizeGroup">
+                <summary data-mode="size">
+                  <span>尺寸调整</span>
+                  <b id="sizeSummaryText">自定义尺寸</b>
+                </summary>
+                <div class="preset-list" id="sizePanel">
+                  <button class="active" type="button" data-size="custom">自定义尺寸</button>
+                  <button type="button" data-size="wechat-main">公众号首图 <span>900 × 383</span></button>
+                  <button type="button" data-size="wechat-sub">公众号次图 <span>200 × 200</span></button>
+                  <button type="button" data-size="web-2k">网站大图2k <span>1920 × 960</span></button>
+                  <button type="button" data-size="web-4k">网站大图4k <span>3840 × 1920</span></button>
+                </div>
+              </details>
 
-            <div class="preset-list" id="sizePanel">
-              <button class="active" type="button" data-size="custom">自定义尺寸</button>
-              <button type="button" data-size="wechat-main">公众号首图 <span>900 × 383</span></button>
-              <button type="button" data-size="wechat-sub">公众号次图 <span>200 × 200</span></button>
-              <button type="button" data-size="web-2k">网站大图2k <span>1920 × 960</span></button>
-              <button type="button" data-size="web-4k">网站大图4k <span>3840 × 1920</span></button>
-            </div>
-
-            <div class="preset-list hidden" id="ratioPanel">
-              <button class="active" type="button" data-ratio="free">自由裁剪</button>
-              <button type="button" data-ratio="1:1">1:1 正方形</button>
-              <button type="button" data-ratio="2:3">2:3 单反相机(竖)</button>
-              <button type="button" data-ratio="3:2">3:2 单反相机(横)</button>
-              <button type="button" data-ratio="3:4">3:4 标准屏幕(竖)</button>
-              <button type="button" data-ratio="4:3">4:3 标准屏幕(横)</button>
-              <button type="button" data-ratio="9:16">9:16 视频竖屏</button>
-              <button type="button" data-ratio="16:9">16:9 视频横屏</button>
-              <button type="button" data-ratio="9:18">9:18 全面屏(竖)</button>
+              <details class="crop-mode-group" id="ratioGroup">
+                <summary data-mode="ratio">
+                  <span>比例裁剪</span>
+                  <b id="ratioSummaryText">自由裁剪</b>
+                </summary>
+                <div class="preset-list" id="ratioPanel">
+                  <button class="active" type="button" data-ratio="free">自由裁剪</button>
+                  <button type="button" data-ratio="1:1">1:1 正方形</button>
+                  <button type="button" data-ratio="2:3">2:3 竖图</button>
+                  <button type="button" data-ratio="3:2">3:2 横图</button>
+                  <button type="button" data-ratio="3:4">3:4 竖屏</button>
+                  <button type="button" data-ratio="4:3">4:3 横屏</button>
+                  <button type="button" data-ratio="9:16">9:16 竖屏</button>
+                  <button type="button" data-ratio="16:9">16:9 横屏</button>
+                  <button type="button" data-ratio="9:18">9:18 全面屏</button>
+                </div>
+              </details>
             </div>
 
             <div class="dimension-row crop-dimensions">
@@ -98,6 +107,20 @@
                 <span>高度</span>
                 <input id="cropHeightInput" type="number" min="1" placeholder="高" />
               </label>
+            </div>
+
+            <div class="smart-crop-panel">
+              <label class="smart-crop-toggle">
+                <span>
+                  <strong>智能构图</strong>
+                  <small>自动调整裁剪框位置，优先保留人物或画面重点。</small>
+                </span>
+                <input id="smartCropToggle" type="checkbox" />
+              </label>
+              <button class="secondary-action smart-crop-button" id="smartCropButton" type="button" disabled>
+                重新智能构图
+              </button>
+              <p class="smart-crop-status" id="smartCropStatus">智能构图在当前浏览器中完成，图片不会上传。</p>
             </div>
 
             <div class="download-row crop-actions">
