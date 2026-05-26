@@ -613,45 +613,6 @@ svg {
   font-weight: 800;
 }
 
-.usage-tip {
-  display: grid;
-  gap: 7px;
-  margin: 10px 0 0;
-  border: 1px solid rgba(78, 96, 156, 0.12);
-  border-radius: 10px;
-  background: #f8fbff;
-}
-
-.usage-tip summary {
-  min-height: 34px;
-  padding: 0 10px;
-  color: #31405d;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 34px;
-  cursor: pointer;
-  list-style-position: inside;
-}
-
-.usage-tip summary:focus-visible {
-  border-radius: 10px;
-  outline: 3px solid rgba(47, 97, 244, 0.14);
-  outline-offset: -3px;
-}
-
-.usage-tip p {
-  margin: 0;
-  padding: 0 10px 10px;
-  color: #657089;
-  font-size: 12px;
-  line-height: 1.55;
-  font-weight: 800;
-}
-
-.usage-tip + .settings {
-  margin-top: 14px;
-}
-
 .compressor-grid {
   display: grid;
   flex: 1;
@@ -1033,10 +994,13 @@ input[type="range"] {
 
 .empty-state {
   display: grid;
+  justify-self: center;
   place-items: center;
+  width: min(100%, 640px);
   gap: 16px;
   color: #72809a;
   font-weight: 800;
+  text-align: center;
 }
 
 .empty-state span {
@@ -1048,9 +1012,17 @@ input[type="range"] {
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='82' height='82' viewBox='0 0 82 82'%3E%3Cg fill='none' stroke='%232f61f4' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='19' y='22' width='44' height='36' rx='4'/%3E%3Cpath d='m23 54 14-16 10 11 6-7 8 10'/%3E%3Ccircle cx='52' cy='32' r='4'/%3E%3C/g%3E%3C/svg%3E") center / 62px 62px no-repeat;
 }
 
-.empty-state p,
+.empty-state p {
+  width: 100%;
+  max-width: min(560px, calc(100% - 56px));
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .empty-state small {
-  max-width: min(320px, calc(100% - 28px));
+  width: 100%;
+  max-width: min(420px, calc(100% - 56px));
   margin: 0;
   text-align: center;
 }
@@ -1371,7 +1343,7 @@ input[type="range"] {
 
 .crop-layout {
   display: grid;
-  grid-template-columns: 250px minmax(290px, 1fr);
+  grid-template-columns: 310px minmax(300px, 1fr);
   gap: 18px;
   min-height: 0;
   flex: 1;
@@ -1759,15 +1731,6 @@ input[type="range"] {
   font-weight: 800;
 }
 
-.crop-sidebar > .usage-tip,
-.filter-sidebar > .usage-tip {
-  margin-top: 0;
-}
-
-.workspace-usage-tip {
-  margin-top: 0;
-}
-
 .crop-stage.dragging-file {
   outline: 3px solid rgba(47, 97, 244, 0.28);
   outline-offset: -6px;
@@ -1888,7 +1851,7 @@ input[type="range"] {
 .title-layout {
   display: grid;
   flex: 1;
-  grid-template-columns: 370px minmax(300px, 1fr);
+  grid-template-columns: 310px minmax(300px, 1fr);
   gap: 18px;
   min-height: 0;
 }
@@ -2904,6 +2867,15 @@ input[type="range"] {
 
   .preview-stage {
     min-height: 260px;
+  }
+
+  .empty-state p {
+    max-width: calc(100% - 28px);
+    white-space: normal;
+  }
+
+  .empty-state small {
+    max-width: calc(100% - 28px);
   }
 
   .upload-panel.has-files .dropzone {

@@ -76,7 +76,7 @@
       <aside class="workspace-panel-left" aria-label="工具参数">
         <section class="workspace-tool-panel active" data-panel="upload">
           <h2>上传图片</h2>
-          <p class="workspace-note">推荐从上传开始，再按需要进入裁剪、滤镜、标题和导出。</p>
+          <p class="workspace-note">上传后可继续裁剪、滤镜、标题和导出。</p>
           <label class="workspace-uploader" id="workspaceUploader">
             <input id="workspaceFileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/bmp,image/tiff,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.avif,.bmp,.dib,.tif,.tiff,.heic,.heif" />
             <span class="upload-icon">
@@ -99,15 +99,12 @@
               <span>替换图片</span>
             </label>
           </div>
-          <div class="workspace-note" id="workspaceUploadNote">上传后可继续拖拽或粘贴图片替换当前作品。</div>
+          <div class="workspace-note hidden" id="workspaceUploadNote">上传后可继续拖拽或粘贴图片替换当前作品。</div>
         </section>
 
         <section class="workspace-tool-panel" data-panel="crop">
           <h2>裁剪</h2>
-          <details class="usage-tip workspace-usage-tip">
-            <summary>裁剪说明</summary>
-            <p>尺寸调整会按固定宽高输出；比例裁剪只锁定裁剪框比例。</p>
-          </details>
+          <p class="workspace-note">选择尺寸或比例，拖动裁剪框后应用。</p>
           <div class="crop-mode-groups" aria-label="裁剪模式">
             <details class="crop-mode-group active" id="workspaceSizeGroup">
               <summary data-mode="size">
@@ -171,7 +168,7 @@
 
         <section class="workspace-tool-panel" data-panel="filter">
           <h2>滤镜</h2>
-          <p class="workspace-note">先选滤镜预设，再展开基础调色或高级调色微调。</p>
+          <p class="workspace-note">选择滤镜预设，也可展开调色微调。</p>
           <section class="workspace-filter-panel" data-workspace-collapsible>
             <button class="workspace-filter-title" type="button" aria-expanded="true">
               <span>滤镜</span><b>⌃</b>
@@ -208,13 +205,13 @@
 
         <section class="workspace-tool-panel" data-panel="title">
           <h2>标题</h2>
-          <p class="workspace-note">添加标题、副标题或正文后，选中文字再调整样式。</p>
+          <p class="workspace-note">添加文字后，选中即可调整样式。</p>
           <div class="workspace-add-text">
             <button type="button" data-add-workspace-text="title">标题</button>
             <button type="button" data-add-workspace-text="subtitle">副标题</button>
             <button type="button" data-add-workspace-text="body">正文</button>
           </div>
-          <div class="workspace-note" id="workspaceNoTextTip">添加标题、副标题或正文后，再配置文字样式。</div>
+          <div class="workspace-note hidden" id="workspaceNoTextTip">添加标题、副标题或正文后，再配置文字样式。</div>
           <div class="workspace-title-config hidden" id="workspaceTitleConfig">
             <div class="workspace-text-head">
               <span>T</span>
@@ -288,8 +285,9 @@
 
         <section class="workspace-tool-panel" data-panel="export">
           <h2>导出压缩</h2>
+          <p class="workspace-note">调整格式、质量和尺寸后下载。</p>
           <div id="workspaceExportLeftDock"></div>
-          <div class="workspace-note" id="workspaceExportDesktopNote">在右侧导出压缩面板调整格式、质量和最大尺寸，下载会使用当前画布结果。</div>
+          <div class="workspace-note hidden" id="workspaceExportDesktopNote">在右侧导出压缩面板调整格式、质量和最大尺寸，下载会使用当前画布结果。</div>
         </section>
       </aside>
 

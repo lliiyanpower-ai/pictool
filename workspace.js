@@ -1826,7 +1826,7 @@ function updateTextPanel() {
     button.disabled = !layer;
   });
   workspaceTitleConfig.classList.toggle("hidden", !layer);
-  workspaceNoTextTip.classList.toggle("hidden", !!layer);
+  workspaceNoTextTip.classList.add("hidden");
   if (!layer) {
     workspaceTextContent.value = "";
     return;
