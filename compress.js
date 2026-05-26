@@ -16,7 +16,11 @@ const resetButton = document.querySelector("#resetButton");
 const compareMask = document.querySelector("#compareMask");
 const originalPreview = document.querySelector("#originalPreview");
 const compressedPreview = document.querySelector("#compressedPreview");
+const compressedPreviewLayer = document.querySelector("#compressedPreviewLayer");
 const previewStage = document.querySelector("#previewStage");
+const zoomOutButton = document.querySelector("#zoomOutButton");
+const zoomInButton = document.querySelector("#zoomInButton");
+const previewZoomValue = document.querySelector("#previewZoomValue");
 const originalSize = document.querySelector("#originalSize");
 const compressedSize = document.querySelector("#compressedSize");
 const savedSizeLabel = document.querySelector("#savedSizeLabel");
@@ -35,12 +39,21 @@ const BATCH_LIMIT = 30;
 const ZIP_SIZE_LIMIT = 200 * 1024 * 1024;
 const INITIAL_UPLOAD_TITLE = "拖拽、粘贴或选择多张图片";
 const INITIAL_UPLOAD_HINT = "支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片";
+const PREVIEW_ZOOM_MIN = 50;
+const PREVIEW_ZOOM_MAX = 500;
+const PREVIEW_ZOOM_STEP = 10;
+const COMPARE_HIT_AREA = 28;
 
 let selectedFile = null;
 let sourceBitmap = null;
 let originalObjectUrl = "";
 let compressedObjectUrl = "";
 let compareValue = 50;
+let previewZoom = 100;
+let previewPanX = 0;
+let previewPanY = 0;
+let previewPointerMode = "";
+let previewDragStart = null;
 let syncingDimensions = false;
 let batchItems = [];
 let selectedBatchId = "";
@@ -89,34 +102,58 @@ maxHeightInput.addEventListener("input", () => {
 });
 
 dropzone.addEventListener("dragover", (event) => {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
-  dropzone.classList.add("dragging");
+  dropzone.classList.toggle("dragging", hasImageLikeTransfer(event.dataTransfer));
 });
 
-dropzone.addEventListener("dragleave", () => {
-  dropzone.classList.remove("dragging");
+dropzone.addEventListener("dragleave", (event) => {
+  if (!dropzone.contains(event.relatedTarget)) {
+    dropzone.classList.remove("dragging");
+  }
 });
 
 dropzone.addEventListener("drop", (event) => {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
   dropzone.classList.remove("dragging");
-  loadFiles(event.dataTransfer.files);
+  loadFiles(getImageFilesFromTransfer(event.dataTransfer));
+});
+
+previewStage.addEventListener("dragenter", handlePreviewFileDrag);
+previewStage.addEventListener("dragover", handlePreviewFileDrag);
+previewStage.addEventListener("dragleave", (event) => {
+  if (!previewStage.contains(event.relatedTarget)) {
+    previewStage.classList.remove("dragging-file");
+  }
+});
+previewStage.addEventListener("drop", (event) => {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  previewStage.classList.remove("dragging-file");
+  loadFiles(getImageFilesFromTransfer(event.dataTransfer));
 });
 
 document.addEventListener("paste", (event) => {
-  if (event.clipboardData.files.length) loadFiles(event.clipboardData.files);
+  const files = getImageFilesFromTransfer(event.clipboardData);
+  if (files.length) loadFiles(files);
 });
 
 fileInput.addEventListener("change", () => {
   if (fileInput.files.length) loadFiles(fileInput.files);
 });
 
-previewStage.addEventListener("pointerdown", startCompareDrag);
-previewStage.addEventListener("pointermove", dragCompare);
-previewStage.addEventListener("pointerup", stopCompareDrag);
-previewStage.addEventListener("pointercancel", stopCompareDrag);
+previewStage.addEventListener("pointerdown", startPreviewDrag);
+previewStage.addEventListener("pointermove", dragPreview);
+previewStage.addEventListener("pointerup", stopPreviewDrag);
+previewStage.addEventListener("pointercancel", stopPreviewDrag);
 previewStage.addEventListener("keydown", moveCompareWithKeyboard);
+previewStage.addEventListener("wheel", handlePreviewWheel, { passive: false });
 previewStage.tabIndex = 0;
+zoomOutButton.addEventListener("click", () => adjustPreviewZoom(-PREVIEW_ZOOM_STEP));
+zoomInButton.addEventListener("click", () => adjustPreviewZoom(PREVIEW_ZOOM_STEP));
+setPreviewZoom(100);
 
 resetButton.addEventListener("click", resetAll);
 batchCompressButton.addEventListener("click", compressBatch);
@@ -175,6 +212,12 @@ async function loadFile(file) {
   await loadFiles([file]);
 }
 
+function handlePreviewFileDrag(event) {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
+  event.preventDefault();
+  previewStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
+}
+
 async function selectBatchItem(id, options = {}) {
   const item = batchItems.find((entry) => entry.id === id);
   if (!item) return;
@@ -200,6 +243,7 @@ async function selectBatchItem(id, options = {}) {
   }
   previewStage.classList.add("has-image");
   previewStage.classList.remove("dragging-compare");
+  resetPreviewZoom();
   resetSavedStat();
   updateCompare(compareValue);
 
@@ -655,8 +699,85 @@ function updateDimensionPlaceholders(width, height) {
   maxHeightInput.placeholder = hasHeight ? `原始（${height}）` : "原始";
 }
 
+function startPreviewDrag(event) {
+  if (event.button !== undefined && event.button !== 0) return;
+  if (event.target.closest(".preview-zoom-controls")) return;
+
+  if (shouldPanPreview(event)) {
+    startPreviewPan(event);
+    return;
+  }
+
+  startCompareDrag(event);
+}
+
+function dragPreview(event) {
+  if (previewPointerMode === "pan") {
+    dragPreviewPan(event);
+    return;
+  }
+
+  dragCompare(event);
+}
+
+function stopPreviewDrag(event) {
+  if (previewPointerMode === "pan") {
+    stopPreviewPan(event);
+    return;
+  }
+
+  stopCompareDrag(event);
+}
+
+function shouldPanPreview(event) {
+  if (!previewStage.classList.contains("has-image") || previewZoom <= 100) return false;
+  return !isCompareDragHit(event);
+}
+
+function isCompareDragHit(event) {
+  if (!previewStage.classList.contains("has-compressed")) return false;
+  if (previewZoom <= 100) return true;
+
+  const rect = previewStage.getBoundingClientRect();
+  const compareX = rect.left + (rect.width * compareValue) / 100;
+  return Math.abs(event.clientX - compareX) <= COMPARE_HIT_AREA;
+}
+
+function startPreviewPan(event) {
+  event.preventDefault();
+  previewPointerMode = "pan";
+  previewDragStart = {
+    x: event.clientX,
+    y: event.clientY,
+    panX: previewPanX,
+    panY: previewPanY
+  };
+  previewStage.classList.add("dragging-preview");
+  previewStage.setPointerCapture(event.pointerId);
+}
+
+function dragPreviewPan(event) {
+  if (previewPointerMode !== "pan" || !previewDragStart) return;
+  setPreviewPan(
+    previewDragStart.panX + event.clientX - previewDragStart.x,
+    previewDragStart.panY + event.clientY - previewDragStart.y
+  );
+}
+
+function stopPreviewPan(event) {
+  if (previewPointerMode !== "pan") return;
+  previewPointerMode = "";
+  previewDragStart = null;
+  previewStage.classList.remove("dragging-preview");
+  if (previewStage.hasPointerCapture(event.pointerId)) {
+    previewStage.releasePointerCapture(event.pointerId);
+  }
+}
+
 function startCompareDrag(event) {
   if (!previewStage.classList.contains("has-compressed")) return;
+  event.preventDefault();
+  previewPointerMode = "compare";
   previewStage.classList.add("dragging-compare");
   previewStage.setPointerCapture(event.pointerId);
   setCompareFromPointer(event);
@@ -669,6 +790,7 @@ function dragCompare(event) {
 
 function stopCompareDrag(event) {
   if (!previewStage.classList.contains("dragging-compare")) return;
+  previewPointerMode = "";
   previewStage.classList.remove("dragging-compare");
   if (previewStage.hasPointerCapture(event.pointerId)) {
     previewStage.releasePointerCapture(event.pointerId);
@@ -688,9 +810,65 @@ function moveCompareWithKeyboard(event) {
   updateCompare(compareValue + (event.key === "ArrowRight" ? 5 : -5));
 }
 
+function handlePreviewWheel(event) {
+  if (!previewStage.classList.contains("has-image")) return;
+
+  event.preventDefault();
+  const direction = event.deltaY < 0 ? 1 : -1;
+  adjustPreviewZoom(direction * PREVIEW_ZOOM_STEP);
+}
+
+function adjustPreviewZoom(delta) {
+  setPreviewZoom(previewZoom + delta);
+}
+
+function resetPreviewZoom() {
+  setPreviewZoom(100);
+}
+
+function setPreviewZoom(value) {
+  previewZoom = Math.max(
+    PREVIEW_ZOOM_MIN,
+    Math.min(PREVIEW_ZOOM_MAX, Math.round(Number(value) || 100))
+  );
+  previewStage.style.setProperty("--preview-zoom", previewZoom / 100);
+  previewZoomValue.textContent = `${previewZoom}%`;
+  previewStage.classList.toggle("preview-is-zoomed", previewZoom > 100);
+  if (previewZoom <= 100) {
+    setPreviewPan(0, 0);
+  } else {
+    setPreviewPan(previewPanX, previewPanY);
+  }
+  updatePreviewZoomControls();
+}
+
+function setPreviewPan(x, y) {
+  const { maxX, maxY } = getPreviewPanBounds();
+  previewPanX = Math.max(-maxX, Math.min(maxX, Number(x) || 0));
+  previewPanY = Math.max(-maxY, Math.min(maxY, Number(y) || 0));
+  previewStage.style.setProperty("--preview-pan-x", `${Math.round(previewPanX)}px`);
+  previewStage.style.setProperty("--preview-pan-y", `${Math.round(previewPanY)}px`);
+}
+
+function getPreviewPanBounds() {
+  if (previewZoom <= 100) return { maxX: 0, maxY: 0 };
+  const rect = previewStage.getBoundingClientRect();
+  const scale = previewZoom / 100;
+  return {
+    maxX: Math.max(0, (rect.width * (scale - 1)) / 2),
+    maxY: Math.max(0, (rect.height * (scale - 1)) / 2)
+  };
+}
+
+function updatePreviewZoomControls() {
+  const hasImage = previewStage.classList.contains("has-image");
+  zoomOutButton.disabled = !hasImage || previewZoom <= PREVIEW_ZOOM_MIN;
+  zoomInButton.disabled = !hasImage || previewZoom >= PREVIEW_ZOOM_MAX;
+}
+
 function updateCompare(value) {
   compareValue = Math.max(0, Math.min(100, Number(value)));
-  compressedPreview.style.clipPath = `inset(0 ${100 - compareValue}% 0 0)`;
+  compressedPreviewLayer.style.clipPath = `inset(0 ${100 - compareValue}% 0 0)`;
   compareMask.style.left = `${compareValue}%`;
 }
 
@@ -924,11 +1102,20 @@ function resetAll() {
   batchItems = [];
   selectedBatchId = "";
   isBatchProcessing = false;
+  previewPointerMode = "";
+  previewDragStart = null;
   revokeUrls();
   fileInput.value = "";
   originalPreview.removeAttribute("src");
   compressedPreview.removeAttribute("src");
-  previewStage.classList.remove("has-image", "has-compressed", "dragging-compare");
+  previewStage.classList.remove(
+    "has-image",
+    "has-compressed",
+    "dragging-compare",
+    "dragging-file",
+    "dragging-preview"
+  );
+  resetPreviewZoom();
   compressor.classList.remove("has-file");
   resetButton.disabled = true;
   originalSize.textContent = "--";

@@ -131,14 +131,23 @@
           </div>
 
           <div class="preview-panel">
-            <div class="preview-stage" id="previewStage" aria-label="拖动图片上的分割线对比压缩前后效果">
+            <div class="preview-stage" id="previewStage" aria-label="使用鼠标滚轮缩放预览，放大后拖动图片移动查看，拖动分割线对比压缩前后效果">
               <div class="empty-state">
                 <span></span>
                 <p>上传图片后查看压缩前后效果</p>
                 <small>拖动分割线对比压缩效果</small>
               </div>
-              <img id="originalPreview" alt="原图预览" />
-              <img id="compressedPreview" alt="压缩后预览" />
+              <div class="preview-zoom-controls" aria-label="预览缩放">
+                <button class="preview-zoom-button" id="zoomOutButton" type="button" aria-label="缩小预览" disabled>−</button>
+                <output id="previewZoomValue" aria-live="polite">100%</output>
+                <button class="preview-zoom-button" id="zoomInButton" type="button" aria-label="放大预览" disabled>+</button>
+              </div>
+              <div class="preview-image-layer preview-original-layer">
+                <img id="originalPreview" alt="原图预览" />
+              </div>
+              <div class="preview-image-layer preview-compressed-layer" id="compressedPreviewLayer">
+                <img id="compressedPreview" alt="压缩后预览" />
+              </div>
               <div class="compare-mask" id="compareMask"></div>
             </div>
 

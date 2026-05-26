@@ -89,17 +89,19 @@ cropFileInput.addEventListener("change", () => {
 });
 
 document.addEventListener("paste", (event) => {
-  const file = [...event.clipboardData.files].find(isImageFile);
+  const file = getFirstImageFileFromTransfer(event.clipboardData);
   if (file) loadFile(file);
 });
 
 cropStage.addEventListener("dragenter", (event) => {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
-  cropStage.classList.add("dragging-file");
+  cropStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
 });
 cropStage.addEventListener("dragover", (event) => {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
-  cropStage.classList.add("dragging-file");
+  cropStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
 });
 cropStage.addEventListener("dragleave", (event) => {
   if (!cropStage.contains(event.relatedTarget)) {
@@ -107,10 +109,19 @@ cropStage.addEventListener("dragleave", (event) => {
   }
 });
 cropStage.addEventListener("drop", (event) => {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
   cropStage.classList.remove("dragging-file");
-  const file = [...event.dataTransfer.files].find(isImageFile);
-  if (file) loadFile(file);
+  const file = getFirstImageFileFromTransfer(event.dataTransfer);
+  if (file) {
+    loadFile(file);
+  } else {
+    showToast(getUnsupportedImageMessage());
+    trackEvent("upload_failed", {
+      tool: "crop",
+      reason: "unsupported_format"
+    });
+  }
 });
 
 cropStage.addEventListener("pointerdown", startCropPointer);

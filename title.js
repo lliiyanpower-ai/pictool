@@ -152,10 +152,19 @@ function bindEvents() {
     if (!titleStage.contains(event.relatedTarget)) titleStage.classList.remove("dragging-file");
   });
   titleStage.addEventListener("drop", (event) => {
+    if (!hasFileLikeTransfer(event.dataTransfer)) return;
     event.preventDefault();
     titleStage.classList.remove("dragging-file");
-    const file = [...event.dataTransfer.files].find(isImageFile);
-    if (file) loadImage(file);
+    const file = getFirstImageFileFromTransfer(event.dataTransfer);
+    if (file) {
+      loadImage(file);
+    } else {
+      showToast(getUnsupportedImageMessage());
+      trackEvent("upload_failed", {
+        tool: "title",
+        reason: "unsupported_format"
+      });
+    }
   });
   titleStage.addEventListener("pointerdown", startTextDrag);
   titleStage.addEventListener("pointermove", moveTextDrag);
@@ -163,7 +172,7 @@ function bindEvents() {
   titleStage.addEventListener("pointercancel", stopTextDrag);
 
   document.addEventListener("paste", (event) => {
-    const file = [...event.clipboardData.files].find(isImageFile);
+    const file = getFirstImageFileFromTransfer(event.clipboardData);
     if (file) loadImage(file);
   });
 
@@ -300,8 +309,9 @@ function deleteSelectedLayer() {
 }
 
 function handleDrag(event) {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
-  titleStage.classList.add("dragging-file");
+  titleStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
 }
 
 function loadImage(file) {

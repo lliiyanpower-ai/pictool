@@ -184,17 +184,17 @@ function bindWorkspaceEvents() {
     target.addEventListener("drop", handleWorkspaceDrop);
   });
   document.addEventListener("dragover", (event) => {
-    if (!hasImageLikeDragData(event.dataTransfer)) return;
+    if (!hasFileLikeTransfer(event.dataTransfer)) return;
     event.preventDefault();
   });
   document.addEventListener("drop", (event) => {
-    if (!hasImageLikeDragData(event.dataTransfer)) return;
+    if (!hasFileLikeTransfer(event.dataTransfer)) return;
     event.preventDefault();
-    loadWorkspaceFiles(event.dataTransfer.files, "drop");
+    loadWorkspaceFiles(getImageFilesFromTransfer(event.dataTransfer), "drop");
   });
 
   document.addEventListener("paste", (event) => {
-    const file = getImageFileFromTransfer(event.clipboardData);
+    const file = getFirstImageFileFromTransfer(event.clipboardData);
     if (!file) return;
     event.preventDefault();
     loadWorkspaceFile(file, "paste");
@@ -449,10 +449,11 @@ function syncWorkspaceExportDock() {
 }
 
 function handleWorkspaceDrag(event) {
-  if (!hasImageLikeDragData(event.dataTransfer)) return;
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
-  workspaceStage.classList.add("dragging-file");
-  workspaceUploader.classList.add("dragging-file");
+  const hasImage = hasImageLikeDragData(event.dataTransfer);
+  workspaceStage.classList.toggle("dragging-file", hasImage);
+  workspaceUploader.classList.toggle("dragging-file", hasImage);
 }
 
 function handleWorkspaceDragLeave(event) {
@@ -462,16 +463,16 @@ function handleWorkspaceDragLeave(event) {
 }
 
 function handleWorkspaceDrop(event) {
-  if (!hasImageLikeDragData(event.dataTransfer)) return;
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
   event.stopPropagation();
   workspaceStage.classList.remove("dragging-file");
   workspaceUploader.classList.remove("dragging-file");
-  loadWorkspaceFiles(event.dataTransfer.files, "drop");
+  loadWorkspaceFiles(getImageFilesFromTransfer(event.dataTransfer), "drop");
 }
 
 function loadWorkspaceFiles(files, source) {
-  const file = getImageFileFromTransfer({ files });
+  const file = getFirstImageFileFromTransfer({ files });
   if (!file) {
     handleWorkspaceUploadFailure("unsupported_format", source);
     return;
@@ -574,17 +575,8 @@ function updateUploadState() {
     : "上传后可继续拖拽或粘贴图片替换当前作品。";
 }
 
-function getImageFileFromTransfer(transfer) {
-  const file = [...(transfer?.files || [])].find(isImageFile);
-  if (file) return file;
-  const item = [...(transfer?.items || [])].find((entry) => entry.kind === "file" && entry.type.startsWith("image/"));
-  return item?.getAsFile?.() || null;
-}
-
 function hasImageLikeDragData(dataTransfer) {
-  if (!dataTransfer) return false;
-  if ([...(dataTransfer.files || [])].some(isImageFile)) return true;
-  return [...(dataTransfer.items || [])].some((item) => item.kind === "file" && item.type.startsWith("image/"));
+  return hasImageLikeTransfer(dataTransfer);
 }
 
 function enableImageActions(enabled) {

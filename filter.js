@@ -76,14 +76,23 @@ filterStage.addEventListener("dragleave", (event) => {
   }
 });
 filterStage.addEventListener("drop", (event) => {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
   filterStage.classList.remove("dragging-file");
-  const file = [...event.dataTransfer.files].find(isImageFile);
-  if (file) loadFile(file);
+  const file = getFirstImageFileFromTransfer(event.dataTransfer);
+  if (file) {
+    loadFile(file);
+  } else {
+    showToast(getUnsupportedImageMessage());
+    trackEvent("upload_failed", {
+      tool: "filter",
+      reason: "unsupported_format"
+    });
+  }
 });
 
 document.addEventListener("paste", (event) => {
-  const file = [...event.clipboardData.files].find(isImageFile);
+  const file = getFirstImageFileFromTransfer(event.clipboardData);
   if (file) loadFile(file);
 });
 
@@ -202,8 +211,9 @@ function syncControlInputs(id) {
 }
 
 function handleDrag(event) {
+  if (!hasFileLikeTransfer(event.dataTransfer)) return;
   event.preventDefault();
-  filterStage.classList.add("dragging-file");
+  filterStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
 }
 
 function loadFile(file) {
