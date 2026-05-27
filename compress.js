@@ -43,6 +43,7 @@ const PREVIEW_ZOOM_MIN = 1;
 const PREVIEW_ZOOM_MAX = 500;
 const PREVIEW_ZOOM_STEP = 10;
 const COMPARE_HIT_AREA = 28;
+const PNG_QUALITY_HINT = "PNG 为无损格式，质量滑块不会影响体积；如需按质量压缩请改用 WebP 或 JPEG。";
 
 let selectedFile = null;
 let sourceBitmap = null;
@@ -61,11 +62,15 @@ let batchItems = [];
 let selectedBatchId = "";
 let batchIdSequence = 0;
 let isBatchProcessing = false;
+let syncingCompressionControls = false;
 
 qualityRange.addEventListener("input", () => {
+  if (isPngOutput()) return;
   qualityValue.textContent = `${qualityRange.value}%`;
 });
 qualityRange.addEventListener("change", () => {
+  if (syncingCompressionControls) return;
+  if (isPngOutput()) return;
   invalidateCompressedResults();
   trackToolEvent("compress", "quality_changed", {
     quality: Number(qualityRange.value),
@@ -74,7 +79,12 @@ qualityRange.addEventListener("change", () => {
 });
 
 formatSelect.addEventListener("change", () => {
+  updateQualityControlForFormat();
+  if (syncingCompressionControls) return;
   invalidateCompressedResults();
+  if (isPngOutput() && batchItems.length && !isBatchProcessing) {
+    statusText.textContent = PNG_QUALITY_HINT;
+  }
   trackEvent("export_format_selected", {
     tool: "compress",
     format: formatSelect.value
@@ -156,6 +166,7 @@ previewStage.tabIndex = 0;
 zoomOutButton.addEventListener("click", () => adjustPreviewZoom(-PREVIEW_ZOOM_STEP));
 zoomInButton.addEventListener("click", () => adjustPreviewZoom(PREVIEW_ZOOM_STEP));
 setPreviewZoom(100);
+updateQualityControlForFormat();
 window.addEventListener("resize", syncPreviewZoomToStage);
 
 resetButton.addEventListener("click", resetAll);
@@ -192,6 +203,7 @@ async function loadFiles(files) {
     compressedBlob: null,
     compressedUrl: "",
     outputType: "",
+    outputQuality: 0,
     outputWidth: 0,
     outputHeight: 0,
     status: "waiting",
@@ -246,6 +258,7 @@ async function selectBatchItem(id, options = {}) {
   }
   previewStage.classList.add("has-image");
   previewStage.classList.remove("dragging-compare");
+  syncCompressionControlsToItem(item);
   resetSavedStat();
   updateCompare(compareValue);
 
@@ -272,7 +285,7 @@ async function selectBatchItem(id, options = {}) {
     if (item.compressedBlob) {
       compressedSize.textContent = formatBytes(item.compressedBlob.size);
       updateSavedStat(item.file.size, item.compressedBlob.size);
-      statusText.textContent = getCompletedStatusText(item.file.size, item.compressedBlob.size);
+      statusText.textContent = getCompletedStatusText(item.file.size, item.compressedBlob.size, item.outputType);
     } else if (item.status === "failed") {
       statusText.textContent = item.error || "这张图片压缩失败，可重新压缩。";
     } else {
@@ -354,7 +367,7 @@ async function compressImage(id = selectedBatchId) {
     return;
   }
 
-  statusText.textContent = getCompletedStatusText(item.file.size, item.compressedBlob.size);
+  statusText.textContent = getCompletedStatusText(item.file.size, item.compressedBlob.size, item.outputType);
   trackToolEvent("compress", "success", {
     tool: "compress",
     format: formatSelect.value,
@@ -372,6 +385,7 @@ async function compressBatchItem(item) {
   item.compressedBlob = null;
   item.compressedUrl = "";
   item.outputType = "";
+  item.outputQuality = 0;
   item.outputWidth = 0;
   item.outputHeight = 0;
   if (item.id === selectedBatchId) {
@@ -402,6 +416,7 @@ async function compressBatchItem(item) {
     item.compressedBlob = blob;
     item.compressedUrl = URL.createObjectURL(blob);
     item.outputType = formatSelect.value;
+    item.outputQuality = Number(qualityRange.value);
     item.outputWidth = width;
     item.outputHeight = height;
     item.status = "done";
@@ -487,7 +502,7 @@ function downloadCompressedItem(item) {
   trackEvent("download_clicked", {
     tool: "compress",
     format: item.outputType || formatSelect.value,
-    quality: Number(qualityRange.value)
+    quality: item.outputQuality || Number(qualityRange.value)
   });
   const link = document.createElement("a");
   link.href = item.compressedUrl;
@@ -520,7 +535,7 @@ async function compressBatch() {
     else failedCount += 1;
     if (item.id === selectedBatchId) {
       statusText.textContent = item.compressedBlob
-        ? getCompletedStatusText(item.file.size, item.compressedBlob.size)
+        ? getCompletedStatusText(item.file.size, item.compressedBlob.size, item.outputType)
         : item.error || "这张图片压缩失败，可重新压缩。";
     }
   }
@@ -535,7 +550,10 @@ async function compressBatch() {
     failed_count: failedCount,
     format: formatSelect.value
   });
-  showToast(successCount ? "批量压缩完成，可打包下载。" : "批量压缩失败，请调整参数后重试。");
+  const isSingle = batchItems.length === 1;
+  showToast(successCount
+    ? (isSingle ? "图片压缩完成，可下载。" : "批量压缩完成，可打包下载。")
+    : (isSingle ? "图片压缩失败，请调整参数后重试。" : "批量压缩失败，请调整参数后重试。"));
 }
 
 async function downloadBatchZip() {
@@ -654,6 +672,32 @@ function updatePrimaryActionState() {
       : (isSingle ? "压缩图片" : "压缩全部图片");
   batchZipButton.textContent = isSingle ? "下载压缩图片" : "打包下载 ZIP";
   batchZipButton.disabled = doneCount === 0 || isBatchProcessing;
+}
+
+function isPngOutput() {
+  return formatSelect.value === "image/png";
+}
+
+function updateQualityControlForFormat() {
+  if (isPngOutput()) {
+    qualityRange.disabled = true;
+    qualityValue.textContent = "无损";
+  } else {
+    qualityRange.disabled = false;
+    qualityValue.textContent = `${qualityRange.value}%`;
+  }
+}
+
+function syncCompressionControlsToItem(item) {
+  if (!item?.compressedBlob) return;
+
+  syncingCompressionControls = true;
+  if (item.outputType) formatSelect.value = item.outputType;
+  if (Number.isFinite(item.outputQuality) && item.outputQuality > 0) {
+    qualityRange.value = item.outputQuality;
+  }
+  updateQualityControlForFormat();
+  syncingCompressionControls = false;
 }
 
 function handleBatchStripClick(event) {
@@ -1098,10 +1142,11 @@ function getSavedPercent(originalBytes, outputBytes) {
   return `-${Math.round((saved / originalBytes) * 100)}%`;
 }
 
-function getCompletedStatusText(originalBytes, outputBytes) {
+function getCompletedStatusText(originalBytes, outputBytes, outputType = formatSelect.value) {
   const saved = originalBytes - outputBytes;
-  return saved >= 0
-    ? `压缩完成，体积减少 ${Math.round((saved / originalBytes) * 100)}%。`
+  if (saved >= 0) return `压缩完成，体积减少 ${Math.round((saved / originalBytes) * 100)}%。`;
+  return outputType === "image/png"
+    ? "PNG 为无损导出，新文件可能比原图大；建议改用 WebP/JPEG、调整尺寸，或保留原图。"
     : "新文件比原图更大，这通常发生在原图已优化或质量设置过高时；建议降低质量、改 WebP，或保留原图。";
 }
 
