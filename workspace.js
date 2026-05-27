@@ -128,6 +128,7 @@ const getDimensionBucket = window.getDimensionBucket || ((width, height) => {
 });
 
 const SMART_CROP_STORAGE_KEY = "pictool.crop.smartCrop";
+const INACTIVE_CROP_MODE_TEXT = "未启用";
 const SMART_CROP_SAMPLE_MAX = 180;
 const FACE_DETECT_SAMPLE_MAX = 720;
 const FACE_HEURISTIC_SAMPLE_MAX = 360;
@@ -196,6 +197,8 @@ buildWorkspaceFilterPresetGrid();
 buildWorkspaceFilterControls(workspaceBasicControlDefs, workspaceBasicControls);
 buildWorkspaceAdvancedControls();
 bindWorkspaceEvents();
+syncWorkspaceModeGroups();
+updateWorkspaceModeSummaries();
 syncWorkspaceExportDock();
 syncWorkspaceSmartCropControls();
 workspaceSmartCropStatus.textContent = state.smartCropEnabled
@@ -906,8 +909,10 @@ function cancelWorkspaceModeClose() {
 function updateWorkspaceModeSummaries() {
   const activeSizeButton = workspaceSizePanel.querySelector("button.active");
   const activeRatioButton = workspaceRatioPanel.querySelector("button.active");
-  workspaceSizeSummaryText.textContent = activeSizeButton ? getWorkspaceButtonMainText(activeSizeButton) : "自定义尺寸";
-  workspaceRatioSummaryText.textContent = activeRatioButton ? getWorkspaceButtonMainText(activeRatioButton) : "自由裁剪";
+  const sizeText = activeSizeButton ? getWorkspaceButtonMainText(activeSizeButton) : "自定义尺寸";
+  const ratioText = activeRatioButton ? getWorkspaceButtonMainText(activeRatioButton) : "自由裁剪";
+  workspaceSizeSummaryText.textContent = state.cropMode === "size" ? sizeText : INACTIVE_CROP_MODE_TEXT;
+  workspaceRatioSummaryText.textContent = state.cropMode === "ratio" ? ratioText : INACTIVE_CROP_MODE_TEXT;
 }
 
 function getWorkspaceButtonMainText(button) {

@@ -1547,6 +1547,10 @@ input[type="range"] {
   font-size: 12px;
 }
 
+.crop-mode-group:not(.active) summary b {
+  color: #9aa4b5;
+}
+
 .crop-mode-group.active summary b {
   color: #2f61f4;
 }

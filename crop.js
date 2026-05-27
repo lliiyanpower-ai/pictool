@@ -35,6 +35,7 @@ const sizeSummaryText = document.querySelector("#sizeSummaryText");
 const ratioSummaryText = document.querySelector("#ratioSummaryText");
 
 const SMART_CROP_STORAGE_KEY = "pictool.crop.smartCrop";
+const INACTIVE_CROP_MODE_TEXT = "未启用";
 const SMART_CROP_SAMPLE_MAX = 180;
 const FACE_DETECT_SAMPLE_MAX = 720;
 const FACE_HEURISTIC_SAMPLE_MAX = 360;
@@ -45,7 +46,7 @@ let sourceObjectUrl = "";
 let outputObjectUrl = "";
 let imageRect = null;
 let cropRect = null;
-let activeMode = "size";
+let cropMode = "size";
 let activeSize = "custom";
 let activeRatio = null;
 let pointerState = null;
@@ -61,6 +62,8 @@ let faceDetector = null;
 let modeCloseTimer = null;
 
 smartCropToggle.checked = smartCropEnabled;
+syncModeGroups();
+updateModeSummaries();
 updateSmartCropControls();
 
 document.querySelectorAll(".crop-mode-group summary").forEach((summary) => {
@@ -173,8 +176,9 @@ cropFormatSelect.addEventListener("change", () => {
 
 function setMode(mode) {
   beginCropEdit();
-  activeMode = mode;
+  cropMode = mode;
   syncModeGroups();
+  updateModeSummaries();
 
   if (mode === "size") {
     const preset = sizePresets[activeSize];
@@ -189,7 +193,7 @@ function setMode(mode) {
 
 function toggleModeGroup(mode) {
   const group = mode === "size" ? sizeGroup : ratioGroup;
-  const willOpen = !group.open || activeMode !== mode;
+  const willOpen = !group.open || cropMode !== mode;
   cancelModeClose();
   setMode(mode);
   closeModeGroup(mode === "size" ? ratioGroup : sizeGroup);
@@ -198,7 +202,7 @@ function toggleModeGroup(mode) {
 
 function setSizePreset(key) {
   beginCropEdit();
-  activeMode = "size";
+  cropMode = "size";
   activeSize = key;
   trackToolEvent("crop", "preset_selected", {
     preset: key
@@ -224,7 +228,7 @@ function setSizePreset(key) {
 
 function setRatioPreset(key) {
   beginCropEdit();
-  activeMode = "ratio";
+  cropMode = "ratio";
   trackToolEvent("crop", "ratio_selected", {
     ratio: key
   });
@@ -246,8 +250,8 @@ function getActiveRatioKey() {
 }
 
 function syncModeGroups() {
-  sizeGroup.classList.toggle("active", activeMode === "size");
-  ratioGroup.classList.toggle("active", activeMode === "ratio");
+  sizeGroup.classList.toggle("active", cropMode === "size");
+  ratioGroup.classList.toggle("active", cropMode === "ratio");
 }
 
 function closeModeGroup(group) {
@@ -277,8 +281,10 @@ function cancelModeClose() {
 function updateModeSummaries() {
   const activeSizeButton = sizePanel.querySelector("button.active");
   const activeRatioButton = ratioPanel.querySelector("button.active");
-  sizeSummaryText.textContent = activeSizeButton ? getButtonMainText(activeSizeButton) : "自定义尺寸";
-  ratioSummaryText.textContent = activeRatioButton ? getButtonMainText(activeRatioButton) : "自由裁剪";
+  const sizeText = activeSizeButton ? getButtonMainText(activeSizeButton) : "自定义尺寸";
+  const ratioText = activeRatioButton ? getButtonMainText(activeRatioButton) : "自由裁剪";
+  sizeSummaryText.textContent = cropMode === "size" ? sizeText : INACTIVE_CROP_MODE_TEXT;
+  ratioSummaryText.textContent = cropMode === "ratio" ? ratioText : INACTIVE_CROP_MODE_TEXT;
 }
 
 function getButtonMainText(button) {
@@ -1154,7 +1160,7 @@ function resizeCrop(rect, handle, dx, dy) {
     height = rect.height - dy;
   }
 
-  const ratio = activeRatio || (activeMode === "size" ? readInputRatio() : null);
+  const ratio = activeRatio || (cropMode === "size" ? readInputRatio() : null);
   if (ratio) {
     if (Math.abs(dx) > Math.abs(dy)) {
       height = width / ratio;
@@ -1171,7 +1177,7 @@ function resizeCrop(rect, handle, dx, dy) {
 function syncCustomSize(changedField) {
   if (syncingInputs) return;
   beginCropEdit();
-  activeMode = "size";
+  cropMode = "size";
   activeSize = "custom";
   sizePanel.querySelectorAll("button").forEach((button) => {
     button.classList.toggle("active", button.dataset.size === "custom");
@@ -1197,7 +1203,7 @@ async function renderOutput() {
   if (!sourceImage || !cropRect) return;
   trackToolEvent("crop", "applied", {
     tool: "crop",
-    mode: activeMode,
+    mode: cropMode,
     preset: activeSize,
     ratio: getActiveRatioKey(),
     format: cropFormatSelect.value
@@ -1265,7 +1271,7 @@ function showOutputPreview(target) {
 function getOutputSize() {
   const width = Number(cropWidthInput.value);
   const height = Number(cropHeightInput.value);
-  if (activeMode === "size" && Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+  if (cropMode === "size" && Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
     return { width: Math.round(width), height: Math.round(height) };
   }
   return {
@@ -1292,7 +1298,7 @@ async function downloadOutput() {
 function resetCrop() {
   if (sourceImage || outputBlob) {
     trackToolEvent("crop", "reset", {
-      mode: activeMode
+      mode: cropMode
     });
   }
   smartCropRunId += 1;
