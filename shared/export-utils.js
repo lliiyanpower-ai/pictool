@@ -14,6 +14,22 @@ export function blobToDataUrl(blob) {
 }
 
 export async function sendBlobToCompress({ blob, name, type, from }) {
+  if (globalThis.saveImageTransferBlob) {
+    try {
+      const transferId = await globalThis.saveImageTransferBlob({ blob, name, type });
+      sessionStorage.setItem("crop-transfer-image", JSON.stringify({
+        transferId,
+        storage: "indexeddb",
+        name,
+        type
+      }));
+      window.location.href = `compress.html?from=${encodeURIComponent(from)}`;
+      return;
+    } catch (error) {
+      // Fall back to the legacy Data URL path for older or restricted browsers.
+    }
+  }
+
   const dataUrl = await blobToDataUrl(blob);
   sessionStorage.setItem("crop-transfer-image", JSON.stringify({ dataUrl, name, type }));
   window.location.href = `compress.html?from=${encodeURIComponent(from)}`;

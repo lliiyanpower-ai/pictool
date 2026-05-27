@@ -298,11 +298,23 @@ async function hydrateCropTransfer() {
 
   try {
     const payload = JSON.parse(raw);
-    const response = await fetch(payload.dataUrl);
-    const blob = await response.blob();
-    const file = new File([blob], payload.name || "crop-image.jpg", {
-      type: payload.type || blob.type || "image/jpeg"
-    });
+    let blob = null;
+    let name = payload.name || "crop-image.jpg";
+    let type = payload.type || "image/jpeg";
+
+    if (payload.transferId && payload.storage === "indexeddb") {
+      const record = await readImageTransferBlob(payload.transferId);
+      if (!record?.blob) throw new Error("transfer_missing");
+      blob = record.blob;
+      name = record.name || name;
+      type = record.type || blob.type || type;
+    } else {
+      const response = await fetch(payload.dataUrl);
+      blob = await response.blob();
+      type = payload.type || blob.type || type;
+    }
+
+    const file = new File([blob], name, { type });
     await loadFile(file);
   } catch (error) {
     showToast("裁剪图片载入失败，请重新选择图片。");
