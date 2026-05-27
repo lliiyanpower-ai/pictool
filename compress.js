@@ -39,7 +39,7 @@ const BATCH_LIMIT = 30;
 const ZIP_SIZE_LIMIT = 200 * 1024 * 1024;
 const INITIAL_UPLOAD_TITLE = "拖拽、粘贴或选择多张图片";
 const INITIAL_UPLOAD_HINT = "支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片";
-const PREVIEW_ZOOM_MIN = 50;
+const PREVIEW_ZOOM_MIN = 1;
 const PREVIEW_ZOOM_MAX = 500;
 const PREVIEW_ZOOM_STEP = 10;
 const COMPARE_HIT_AREA = 28;
@@ -52,6 +52,8 @@ let compareValue = 50;
 let previewZoom = 100;
 let previewPanX = 0;
 let previewPanY = 0;
+let previewSourceWidth = 0;
+let previewSourceHeight = 0;
 let previewPointerMode = "";
 let previewDragStart = null;
 let syncingDimensions = false;
@@ -154,6 +156,7 @@ previewStage.tabIndex = 0;
 zoomOutButton.addEventListener("click", () => adjustPreviewZoom(-PREVIEW_ZOOM_STEP));
 zoomInButton.addEventListener("click", () => adjustPreviewZoom(PREVIEW_ZOOM_STEP));
 setPreviewZoom(100);
+window.addEventListener("resize", syncPreviewZoomToStage);
 
 resetButton.addEventListener("click", resetAll);
 batchCompressButton.addEventListener("click", compressBatch);
@@ -243,7 +246,6 @@ async function selectBatchItem(id, options = {}) {
   }
   previewStage.classList.add("has-image");
   previewStage.classList.remove("dragging-compare");
-  resetPreviewZoom();
   resetSavedStat();
   updateCompare(compareValue);
 
@@ -254,6 +256,8 @@ async function selectBatchItem(id, options = {}) {
       return;
     }
     sourceBitmap = bitmap;
+    setPreviewSourceSize(sourceBitmap.width, sourceBitmap.height);
+    resetPreviewZoom();
     if (!item.uploadedTracked) {
       trackEvent("image_uploaded", {
         tool: "compress",
@@ -742,13 +746,13 @@ function stopPreviewDrag(event) {
 }
 
 function shouldPanPreview(event) {
-  if (!previewStage.classList.contains("has-image") || previewZoom <= 100) return false;
+  if (!previewStage.classList.contains("has-image") || !isPreviewVisuallyZoomed()) return false;
   return !isCompareDragHit(event);
 }
 
 function isCompareDragHit(event) {
   if (!previewStage.classList.contains("has-compressed")) return false;
-  if (previewZoom <= 100) return true;
+  if (!isPreviewVisuallyZoomed()) return true;
 
   const rect = previewStage.getBoundingClientRect();
   const compareX = rect.left + (rect.width * compareValue) / 100;
@@ -835,23 +839,56 @@ function adjustPreviewZoom(delta) {
 }
 
 function resetPreviewZoom() {
-  setPreviewZoom(100);
+  setPreviewZoom(Math.min(100, getPreviewFitZoom()));
 }
 
 function setPreviewZoom(value) {
-  previewZoom = Math.max(
-    PREVIEW_ZOOM_MIN,
-    Math.min(PREVIEW_ZOOM_MAX, Math.round(Number(value) || 100))
-  );
-  previewStage.style.setProperty("--preview-zoom", previewZoom / 100);
-  previewZoomValue.textContent = `${previewZoom}%`;
-  previewStage.classList.toggle("preview-is-zoomed", previewZoom > 100);
-  if (previewZoom <= 100) {
+  previewZoom = clampPreviewZoom(value);
+  const cssScale = getPreviewCssScale();
+  previewStage.style.setProperty("--preview-zoom", cssScale);
+  previewZoomValue.textContent = `${formatPreviewZoom(previewZoom)}%`;
+  previewStage.classList.toggle("preview-is-zoomed", cssScale > 1.01);
+  if (cssScale <= 1.01) {
     setPreviewPan(0, 0);
   } else {
     setPreviewPan(previewPanX, previewPanY);
   }
   updatePreviewZoomControls();
+}
+
+function syncPreviewZoomToStage() {
+  if (!previewStage.classList.contains("has-image")) return;
+  setPreviewZoom(previewZoom);
+}
+
+function setPreviewSourceSize(width, height) {
+  previewSourceWidth = Number(width) || 0;
+  previewSourceHeight = Number(height) || 0;
+}
+
+function clampPreviewZoom(value) {
+  return Math.max(PREVIEW_ZOOM_MIN, Math.min(PREVIEW_ZOOM_MAX, Number(value) || 100));
+}
+
+function formatPreviewZoom(value) {
+  return value < 10 && !Number.isInteger(value) ? value.toFixed(1) : String(Math.round(value));
+}
+
+function getPreviewFitZoom() {
+  if (!previewSourceWidth || !previewSourceHeight) return 100;
+  const rect = previewStage.getBoundingClientRect();
+  if (!rect.width || !rect.height) return 100;
+  return Math.min(rect.width / previewSourceWidth, rect.height / previewSourceHeight) * 100;
+}
+
+function getPreviewCssScale() {
+  const fitZoom = getPreviewFitZoom();
+  if (!fitZoom) return 1;
+  return Math.max(0.01, previewZoom / fitZoom);
+}
+
+function isPreviewVisuallyZoomed() {
+  return getPreviewCssScale() > 1.01;
 }
 
 function setPreviewPan(x, y) {
@@ -863,19 +900,22 @@ function setPreviewPan(x, y) {
 }
 
 function getPreviewPanBounds() {
-  if (previewZoom <= 100) return { maxX: 0, maxY: 0 };
+  const cssScale = getPreviewCssScale();
+  if (cssScale <= 1.01 || !previewSourceWidth || !previewSourceHeight) return { maxX: 0, maxY: 0 };
   const rect = previewStage.getBoundingClientRect();
-  const scale = previewZoom / 100;
+  const fitRatio = getPreviewFitZoom() / 100;
+  const fitWidth = previewSourceWidth * fitRatio;
+  const fitHeight = previewSourceHeight * fitRatio;
   return {
-    maxX: Math.max(0, (rect.width * (scale - 1)) / 2),
-    maxY: Math.max(0, (rect.height * (scale - 1)) / 2)
+    maxX: Math.max(0, (fitWidth * cssScale - rect.width) / 2),
+    maxY: Math.max(0, (fitHeight * cssScale - rect.height) / 2)
   };
 }
 
 function updatePreviewZoomControls() {
   const hasImage = previewStage.classList.contains("has-image");
-  zoomOutButton.disabled = !hasImage || previewZoom <= PREVIEW_ZOOM_MIN;
-  zoomInButton.disabled = !hasImage || previewZoom >= PREVIEW_ZOOM_MAX;
+  zoomOutButton.disabled = !hasImage || previewZoom <= PREVIEW_ZOOM_MIN + 0.01;
+  zoomInButton.disabled = !hasImage || previewZoom >= PREVIEW_ZOOM_MAX - 0.01;
 }
 
 function updateCompare(value) {
@@ -1116,6 +1156,7 @@ function resetAll() {
   isBatchProcessing = false;
   previewPointerMode = "";
   previewDragStart = null;
+  setPreviewSourceSize(0, 0);
   revokeUrls();
   fileInput.value = "";
   originalPreview.removeAttribute("src");
