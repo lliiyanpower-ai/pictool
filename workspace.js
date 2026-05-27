@@ -659,7 +659,7 @@ function buildWorkspaceFilterControls(defs, target) {
   target.innerHTML = "";
   defs.forEach(([id, label, min, max]) => {
     const wrap = document.createElement("div");
-    wrap.className = "workspace-tone-control";
+    wrap.className = "workspace-tone-control tone-control";
     wrap.innerHTML = `
       <label for="workspace-${id}-control">${label}</label>
       <input id="workspace-${id}-control" type="range" min="${min}" max="${max}" value="${state.filterValues[id]}" />

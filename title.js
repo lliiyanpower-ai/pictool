@@ -55,6 +55,8 @@ let selectedTextId = "";
 let layerMetrics = [];
 let draggingText = null;
 let syncingInspector = false;
+let previewFrame = 0;
+let pendingPreviewOptions = null;
 
 bindEvents();
 renderPreview();
@@ -349,31 +351,82 @@ function loadImage(file) {
   image.src = sourceObjectUrl;
 }
 
-function renderPreview() {
+function renderPreview(options = {}) {
+  cancelPendingPreviewRender();
+  const {
+    syncInspector = true,
+    updateEstimate = true
+  } = options;
   renderCanvas(titleCanvas, true);
   fitCanvas();
-  updateInspector();
-  markOutputEstimateDirty();
+  if (syncInspector) updateInspector();
+  if (updateEstimate) markOutputEstimateDirty();
+}
+
+function schedulePreviewRender(options = {}) {
+  pendingPreviewOptions = mergePreviewOptions(pendingPreviewOptions, options);
+  if (previewFrame) return;
+  previewFrame = window.requestAnimationFrame(() => {
+    const renderOptions = pendingPreviewOptions || {};
+    previewFrame = 0;
+    pendingPreviewOptions = null;
+    renderPreview(renderOptions);
+  });
+}
+
+function mergePreviewOptions(current, next) {
+  if (!current) return { ...next };
+  return {
+    syncInspector: Boolean(current.syncInspector || next.syncInspector),
+    updateEstimate: Boolean(current.updateEstimate || next.updateEstimate)
+  };
+}
+
+function cancelPendingPreviewRender() {
+  if (!previewFrame) return;
+  window.cancelAnimationFrame(previewFrame);
+  previewFrame = 0;
+  pendingPreviewOptions = null;
 }
 
 function renderCanvas(canvas, includeControls, forcedSize = null) {
   const { width, height } = forcedSize || getCanvasSize(includeControls);
+  const baseSize = getCanvasSize(false);
+  const scaleX = baseSize.width ? width / baseSize.width : 1;
+  const scaleY = baseSize.height ? height / baseSize.height : 1;
+  const shouldUpdateMetrics = includeControls && canvas === titleCanvas;
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  layerMetrics = [];
+  const ctx = canvas.getContext("2d");
+  if (shouldUpdateMetrics) layerMetrics = [];
 
   drawImageBase(ctx, width, height);
 
   textLayers.forEach((layer) => {
-    const metrics = drawTextLayer(ctx, layer, includeControls && layer.id === selectedTextId);
-    layer.measuredHeight = metrics.height;
-    layerMetrics.push(metrics);
+    const scaledLayer = getScaledLayer(layer, scaleX, scaleY);
+    const metrics = drawTextLayer(ctx, scaledLayer, includeControls && layer.id === selectedTextId);
+    if (shouldUpdateMetrics) {
+      layer.measuredHeight = scaleY ? metrics.height / scaleY : metrics.height;
+      layerMetrics.push(metrics);
+    }
   });
 
   if (includeControls && sourceImage) {
     drawSafetyZone(ctx, width, height);
   }
+}
+
+function getScaledLayer(layer, scaleX, scaleY) {
+  const textScale = Math.min(scaleX || 1, scaleY || 1);
+  return {
+    ...layer,
+    x: layer.x * scaleX,
+    y: layer.y * scaleY,
+    width: layer.width * scaleX,
+    size: layer.size * textScale,
+    letterSpacing: (Number(layer.letterSpacing) || 0) * textScale,
+    strokeWidth: (Number(layer.strokeWidth) || 0) * textScale
+  };
 }
 
 function drawImageBase(ctx, width, height) {
@@ -520,14 +573,22 @@ function drawSelection(ctx, region, locked) {
   ctx.lineWidth = Math.max(2, region.canvasWidth * 0.002);
   ctx.strokeRect(region.x, region.y, region.width, region.height);
   ctx.setLineDash([]);
-  const handleW = Math.max(12, region.canvasWidth * 0.012);
-  const handleH = Math.max(44, region.canvasHeight * 0.08);
-  const handleX = region.x + region.width - handleW / 2;
-  const handleY = region.y + region.height / 2 - handleH / 2;
-  roundRect(ctx, handleX, handleY, handleW, handleH, handleW / 2);
+  const handle = getResizeHandleRegion(region);
+  roundRect(ctx, handle.x, handle.y, handle.width, handle.height, handle.width / 2);
   ctx.fillStyle = locked ? "#94a3b8" : "#31c8ff";
   ctx.fill();
   ctx.restore();
+}
+
+function getResizeHandleRegion(region) {
+  const width = Math.max(12, region.canvasWidth * 0.012);
+  const height = Math.max(44, region.canvasHeight * 0.08);
+  return {
+    x: region.x + region.width - width / 2,
+    y: region.y + region.height / 2 - height / 2,
+    width,
+    height
+  };
 }
 
 function drawSafetyZone(ctx, width, height) {
@@ -579,25 +640,31 @@ function getBoundedCanvasSize(size, maxPixels) {
 function startTextDrag(event) {
   if (!layerMetrics.length) return;
   const point = clientToCanvasPoint(event);
-  const hit = findMetricAtPoint(point);
+  const resizeHit = findResizeHandleAtPoint(point);
+  const hit = resizeHit || findMetricAtPoint(point);
   if (!hit) return;
 
   selectedTextId = hit.id;
   const layer = getSelectedLayer();
   updateInspector();
-  renderPreview();
+  renderPreview({ syncInspector: false, updateEstimate: false });
   if (!layer || layer.locked) return;
 
   const threshold = hit.canvasWidth * 0.035;
   const nearRight = Math.abs(point.x - (hit.x + hit.width)) < threshold;
   const insideY = point.y >= hit.y && point.y <= hit.y + hit.height;
+  const previewScale = getActivePreviewScale();
+  pauseOutputEstimateForDrag();
   draggingText = {
-    mode: nearRight && insideY ? "resize" : "move",
+    mode: resizeHit || (nearRight && insideY) ? "resize" : "move",
     startX: point.x,
     startY: point.y,
     layerX: layer.x,
     layerY: layer.y,
-    layerWidth: layer.width
+    layerWidth: layer.width,
+    scaleX: previewScale.x,
+    scaleY: previewScale.y,
+    changed: false
   };
   titleStage.setPointerCapture(event.pointerId);
   event.preventDefault();
@@ -608,24 +675,33 @@ function moveTextDrag(event) {
   const layer = getSelectedLayer();
   if (!layer || layer.locked) return;
   const point = clientToCanvasPoint(event);
-  const dx = point.x - draggingText.startX;
-  const dy = point.y - draggingText.startY;
+  const dx = (point.x - draggingText.startX) / (draggingText.scaleX || 1);
+  const dy = (point.y - draggingText.startY) / (draggingText.scaleY || 1);
   const { width, height } = getCanvasSize();
   const safe = getSafeRect(width, height);
 
   if (draggingText.mode === "resize") {
-    layer.width = Math.max(width * 0.08, Math.min(safe.width, draggingText.layerWidth + dx));
+    const nextWidth = Math.max(width * 0.08, Math.min(safe.width, draggingText.layerWidth + dx));
+    if (Math.abs(nextWidth - layer.width) < 0.5) return;
+    layer.width = nextWidth;
   } else {
-    layer.x = Math.max(0, Math.min(width - layer.width, draggingText.layerX + dx));
-    layer.y = Math.max(0, Math.min(height - (layer.measuredHeight || layer.size), draggingText.layerY + dy));
+    const nextX = Math.max(0, Math.min(width - layer.width, draggingText.layerX + dx));
+    const nextY = Math.max(0, Math.min(height - (layer.measuredHeight || layer.size), draggingText.layerY + dy));
+    if (Math.abs(nextX - layer.x) < 0.5 && Math.abs(nextY - layer.y) < 0.5) return;
+    layer.x = nextX;
+    layer.y = nextY;
   }
-  renderPreview();
+  draggingText.changed = true;
+  schedulePreviewRender({ syncInspector: false, updateEstimate: false });
 }
 
 function stopTextDrag(event) {
   if (!draggingText) return;
+  const changed = draggingText.changed;
   draggingText = null;
   if (titleStage.hasPointerCapture(event.pointerId)) titleStage.releasePointerCapture(event.pointerId);
+  if (changed) renderPreview({ syncInspector: false, updateEstimate: true });
+  if (!changed && needsEstimate && !isEstimating && !estimateTimer) scheduleOutputEstimate();
 }
 
 function findMetricAtPoint(point) {
@@ -643,11 +719,29 @@ function findMetricAtPoint(point) {
   return null;
 }
 
+function findResizeHandleAtPoint(point) {
+  const metric = layerMetrics.find((item) => item.id === selectedTextId);
+  if (!metric) return null;
+  const handle = getResizeHandleRegion(metric);
+  const padding = Math.max(6, metric.canvasWidth * 0.006);
+  const insideX = point.x >= handle.x - padding && point.x <= handle.x + handle.width + padding;
+  const insideY = point.y >= handle.y - padding && point.y <= handle.y + handle.height + padding;
+  return insideX && insideY ? metric : null;
+}
+
 function clientToCanvasPoint(event) {
   const rect = titleCanvas.getBoundingClientRect();
   return {
     x: ((event.clientX - rect.left) / rect.width) * titleCanvas.width,
     y: ((event.clientY - rect.top) / rect.height) * titleCanvas.height
+  };
+}
+
+function getActivePreviewScale() {
+  const baseSize = getCanvasSize(false);
+  return {
+    x: baseSize.width ? titleCanvas.width / baseSize.width : 1,
+    y: baseSize.height ? titleCanvas.height / baseSize.height : 1
   };
 }
 
@@ -662,17 +756,22 @@ function wrapText(ctx, text, maxWidth, font, spacing) {
   ctx.font = font;
   const value = String(text || "").trim();
   if (!value) return [];
+  const lineLimit = Math.max(1, Number(maxWidth) || 1);
   const lines = [];
   value.split(/\n/).forEach((paragraph) => {
     const chars = [...paragraph];
     let line = "";
+    let lineWidth = 0;
     chars.forEach((char) => {
-      const next = line + char;
-      if (measureTextWithSpacing(ctx, next, spacing) > maxWidth && line) {
+      const charWidth = ctx.measureText(char).width;
+      const nextWidth = line ? lineWidth + spacing + charWidth : charWidth;
+      if (nextWidth > lineLimit && line) {
         lines.push(line);
         line = char;
+        lineWidth = charWidth;
       } else {
-        line = next;
+        line += char;
+        lineWidth = nextWidth;
       }
     });
     if (line) lines.push(line);
@@ -774,6 +873,15 @@ function markOutputEstimateDirty() {
   needsEstimate = true;
   clearOutputCache();
   scheduleOutputEstimate();
+}
+
+function pauseOutputEstimateForDrag() {
+  window.clearTimeout(estimateTimer);
+  estimateTimer = 0;
+  if (!isEstimating) return;
+  estimateToken++;
+  isEstimating = false;
+  needsEstimate = true;
 }
 
 function scheduleOutputEstimate(delay = TITLE_ESTIMATE_DELAY) {
