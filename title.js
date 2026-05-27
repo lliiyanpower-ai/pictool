@@ -2,11 +2,11 @@ import {
   TITLE_TEXT_PRESETS as textPresets
 } from "./shared/presets.js";
 import {
+  buildExportFileName,
   canvasToBlob,
   downloadUrl,
   formatBytes,
   formatFileName,
-  getImageExtension,
   readNumber,
   sendBlobToCompress
 } from "./shared/export-utils.js";
@@ -701,7 +701,7 @@ async function makeOutputBlob() {
   const outputCanvas = document.createElement("canvas");
   renderCanvas(outputCanvas, false);
   const mimeType = titleFormatSelect.value;
-  const quality = mimeType === "image/jpeg" ? 0.94 : undefined;
+  const quality = mimeType === "image/png" ? undefined : 0.94;
   return canvasToBlob(outputCanvas, mimeType, quality);
 }
 
@@ -714,7 +714,7 @@ async function makeEstimateBlob() {
   const outputCanvas = document.createElement("canvas");
   renderCanvas(outputCanvas, false, sampleSize);
   const mimeType = titleFormatSelect.value;
-  const quality = mimeType === "image/jpeg" ? 0.94 : undefined;
+  const quality = mimeType === "image/png" ? undefined : 0.94;
   const sampleBlob = await canvasToBlob(outputCanvas, mimeType, quality);
   if (!sampleBlob) return null;
 
@@ -796,7 +796,7 @@ async function downloadTitle() {
     format: titleFormatSelect.value,
     text_layers: textLayers.length
   });
-  downloadUrl(outputObjectUrl, `${sourceFileName}-title.${getExtension()}`);
+  downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "title", titleFormatSelect.value));
 }
 
 async function sendToCompress() {
@@ -809,7 +809,7 @@ async function sendToCompress() {
   });
   await sendBlobToCompress({
     blob,
-    name: `${sourceFileName}-title.${getExtension()}`,
+    name: buildExportFileName(sourceFileName, "title", titleFormatSelect.value),
     type: titleFormatSelect.value,
     from: "title"
   });
@@ -824,10 +824,6 @@ function clearOutputCache(invalidateEstimate = true) {
   if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
   outputObjectUrl = "";
   titleOutputSize.textContent = sourceImage ? "计算中" : "--";
-}
-
-function getExtension() {
-  return getImageExtension(titleFormatSelect.value);
 }
 
 function hexToRgba(hex, alpha) {

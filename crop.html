@@ -40,7 +40,7 @@
         "featureList": [
           "支持尺寸预设",
           "支持比例裁剪",
-          "支持 PNG 和 JPG 导出"
+          "支持 JPEG、WebP 和 PNG 导出"
         ]
       }
     </script>
@@ -132,8 +132,9 @@
             <label class="crop-format">
               <span>导出格式 <b id="cropOutputSize">--</b></span>
               <select id="cropFormatSelect">
+                <option value="image/jpeg" selected>JPEG</option>
+                <option value="image/webp">WebP</option>
                 <option value="image/png">PNG</option>
-                <option value="image/jpeg" selected>JPG</option>
               </select>
             </label>
             <button class="compress-button" id="cropDownloadButton" type="button" disabled>下载图片</button>

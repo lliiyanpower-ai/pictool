@@ -13,13 +13,13 @@ import {
   mergeFilterValues
 } from "./shared/filter-engine.js";
 import {
+  buildExportFileName,
   canvasToBlob,
   clampNumber,
   downloadUrl,
   escapeHtml,
   formatBytes,
-  formatFileName,
-  getImageExtension
+  formatFileName
 } from "./shared/export-utils.js";
 
 const workspaceFileInput = document.querySelector("#workspaceFileInput");
@@ -2658,7 +2658,7 @@ async function downloadWorkspaceImage() {
       text_layers: state.textLayers.length,
       dimension_bucket: getExportDimensionBucket()
     });
-    downloadUrl(state.outputUrl, `${state.fileName}-workspace.${getExtension()}`);
+    downloadUrl(state.outputUrl, buildExportFileName(state.fileName, "workspace", workspaceFormat.value));
     trackEvent("workspace_download_success", {
       tool: "workspace",
       format: workspaceFormat.value,
@@ -2732,10 +2732,6 @@ function bucketBytes(bytes) {
   if (mb < 5) return "1-5m";
   if (mb < 10) return "5-10m";
   return "10m+";
-}
-
-function getExtension() {
-  return getImageExtension(workspaceFormat.value);
 }
 
 function startCanvasDrag(event) {

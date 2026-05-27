@@ -9,10 +9,10 @@ import {
   renderFilteredCanvas
 } from "./shared/filter-engine.js";
 import {
+  buildExportFileName,
   canvasToBlob,
   downloadUrl,
   formatBytes,
-  getImageExtension,
   sendBlobToCompress
 } from "./shared/export-utils.js";
 
@@ -319,7 +319,7 @@ async function makeOutputBlob() {
   renderToCanvas(outputCanvas, sourceCanvas);
 
   const mimeType = filterFormatSelect.value;
-  const quality = mimeType === "image/jpeg" ? 0.94 : undefined;
+  const quality = mimeType === "image/png" ? undefined : 0.94;
   return canvasToBlob(outputCanvas, mimeType, quality);
 }
 
@@ -341,7 +341,7 @@ async function makeEstimateBlob() {
   const outputCanvas = document.createElement("canvas");
   renderToCanvas(outputCanvas, sourceCanvas);
   const mimeType = filterFormatSelect.value;
-  const quality = mimeType === "image/jpeg" ? 0.94 : undefined;
+  const quality = mimeType === "image/png" ? undefined : 0.94;
   const sampleBlob = await canvasToBlob(outputCanvas, mimeType, quality);
   if (!sampleBlob) return null;
 
@@ -421,7 +421,7 @@ async function downloadImage() {
     format: filterFormatSelect.value
   });
 
-  downloadUrl(outputObjectUrl, `${sourceFileName}-filter.${getExtension()}`);
+  downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "filter", filterFormatSelect.value));
 }
 
 async function sendToCompress() {
@@ -434,7 +434,7 @@ async function sendToCompress() {
 
   await sendBlobToCompress({
     blob,
-    name: `${sourceFileName}-filter.${getExtension()}`,
+    name: buildExportFileName(sourceFileName, "filter", filterFormatSelect.value),
     type: filterFormatSelect.value,
     from: "filter"
   });
@@ -449,10 +449,6 @@ function clearOutputCache(invalidateEstimate = true) {
   if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
   outputObjectUrl = "";
   if (sourceImage) filterOutputSize.textContent = "计算中";
-}
-
-function getExtension() {
-  return getImageExtension(filterFormatSelect.value);
 }
 
 function showToast(message) {

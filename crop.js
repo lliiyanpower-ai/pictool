@@ -3,10 +3,10 @@ import {
   CROP_SIZE_PRESETS as sizePresets
 } from "./shared/presets.js";
 import {
+  buildExportFileName,
   canvasToBlob,
   downloadUrl,
   formatBytes,
-  getImageExtension,
   sendBlobToCompress
 } from "./shared/export-utils.js";
 
@@ -1247,7 +1247,7 @@ async function createOutputBlob() {
   );
 
   const mimeType = cropFormatSelect.value;
-  const quality = mimeType === "image/jpeg" ? 0.95 : undefined;
+  const quality = mimeType === "image/png" ? undefined : 0.95;
   const blob = await canvasToBlob(canvas, mimeType, quality);
   return { blob, target };
 }
@@ -1292,7 +1292,7 @@ async function downloadOutput() {
     format: cropFormatSelect.value
   });
 
-  downloadUrl(outputObjectUrl, `${sourceFileName}-crop.${getExtension()}`);
+  downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "crop", cropFormatSelect.value));
 }
 
 function resetCrop() {
@@ -1400,10 +1400,6 @@ function writeSmartCropPreference(value) {
   }
 }
 
-function getExtension() {
-  return getImageExtension(cropFormatSelect.value);
-}
-
 async function sendToCompress() {
   if (!outputBlob || !outputObjectUrl) {
     await renderOutput();
@@ -1416,7 +1412,7 @@ async function sendToCompress() {
 
   await sendBlobToCompress({
     blob: outputBlob,
-    name: `${sourceFileName}-crop.${getExtension()}`,
+    name: buildExportFileName(sourceFileName, "crop", cropFormatSelect.value),
     type: cropFormatSelect.value,
     from: "crop"
   });

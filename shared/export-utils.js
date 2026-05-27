@@ -50,6 +50,20 @@ export function getImageExtension(mimeType) {
   return "jpg";
 }
 
+export function buildExportFileName(fileName, tool, mimeType) {
+  const stem = cleanFileNamePart(String(fileName || "").replace(/\.[^.]+$/, ""), "image");
+  const suffix = cleanFileNamePart(tool, "export");
+  return `${stem}-pictool-${suffix}.${getImageExtension(mimeType)}`;
+}
+
+function cleanFileNamePart(value, fallback) {
+  return String(value || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/^\.+$/, "")
+    || fallback;
+}
+
 export function formatBytes(bytes) {
   if (!Number.isFinite(bytes)) return "--";
   if (bytes < 1024) return `${bytes} B`;

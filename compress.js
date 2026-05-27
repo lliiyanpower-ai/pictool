@@ -586,7 +586,7 @@ async function downloadBatchZip() {
     });
     const link = document.createElement("a");
     link.href = zipUrl;
-    link.download = "pictool-compressed.zip";
+    link.download = "pictool-compress.zip";
     document.body.append(link);
     link.click();
     link.remove();
@@ -974,8 +974,8 @@ function buildDownloadName(fileName, mimeType) {
     "image/jpeg": "jpg",
     "image/png": "png"
   };
-  const stem = fileName.replace(/\.[^.]+$/, "") || "image";
-  return `${stem}-compressed.${extensionMap[mimeType] || "jpg"}`;
+  const stem = String(fileName || "").replace(/\.[^.]+$/, "") || "image";
+  return `${stem}-pictool-compress.${extensionMap[mimeType] || "jpg"}`;
 }
 
 async function createZipBlob(items) {
