@@ -38,6 +38,15 @@
     return "95-100";
   }
 
+  function bucketBatchCount(value) {
+    const count = Number(value);
+    if (!Number.isFinite(count) || count < 2) return "unknown";
+    if (count <= 5) return "2-5";
+    if (count <= 10) return "6-10";
+    if (count <= 20) return "11-20";
+    return "20+";
+  }
+
   function normalizeDimensionBucket(value) {
     const allowed = new Set(["unknown", "small", "medium", "large", "ultra"]);
     return allowed.has(value) ? value : "unknown";
@@ -89,6 +98,11 @@
       if (key === "file_size_mb") return;
       if (key === "output_size_mb") return;
       if (key === "output_width" || key === "output_height") return;
+      if (key === "batch_count") {
+        payload.batch_count_bucket = bucketBatchCount(value);
+        return;
+      }
+      if (key === "success_count" || key === "failed_count") return;
       if (key === "quality") {
         payload.quality_bucket = bucketQuality(value);
         return;
@@ -179,6 +193,7 @@
   window.getImageAnalyticsMeta = imageMeta;
   window.getQualityBucket = bucketQuality;
   window.getDimensionBucket = bucketDimensions;
+  window.getBatchCountBucket = bucketBatchCount;
 
   window.configureTracking = function configureTracking(options = {}) {
     Object.assign(config, options);

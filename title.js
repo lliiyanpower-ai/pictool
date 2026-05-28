@@ -12,6 +12,7 @@ import {
 } from "./shared/export-utils.js";
 
 const titleImageInput = document.querySelector("#titleImageInput");
+const titleUploader = titleImageInput.closest(".mini-uploader");
 const titleStage = document.querySelector("#titleStage");
 const titleCanvas = document.querySelector("#titleCanvas");
 const textAddGrid = document.querySelector("#textAddGrid");
@@ -148,15 +149,58 @@ function bindEvents() {
     if (file) loadImage(file);
   });
 
+  if (titleUploader) {
+    titleUploader.addEventListener("dragenter", (event) => {
+      if (!allowFileDrop(event)) return;
+      titleUploader.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
+    });
+    titleUploader.addEventListener("dragover", (event) => {
+      if (!allowFileDrop(event)) return;
+      titleUploader.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
+    });
+    titleUploader.addEventListener("dragleave", (event) => {
+      if (!titleUploader.contains(event.relatedTarget)) titleUploader.classList.remove("dragging-file");
+    });
+    titleUploader.addEventListener("drop", (event) => {
+      if (!allowFileDrop(event)) return;
+      event.stopPropagation();
+      titleUploader.classList.remove("dragging-file");
+      const file = getFirstImageFileFromTransfer(event.dataTransfer);
+      if (file) {
+        loadImage(file);
+      } else {
+        showToast(getUnsupportedImageMessage());
+        trackEvent("upload_failed", {
+          tool: "title",
+          reason: "unsupported_format"
+        });
+      }
+    });
+  }
+
   titleStage.addEventListener("dragenter", handleDrag);
   titleStage.addEventListener("dragover", handleDrag);
   titleStage.addEventListener("dragleave", (event) => {
     if (!titleStage.contains(event.relatedTarget)) titleStage.classList.remove("dragging-file");
   });
   titleStage.addEventListener("drop", (event) => {
-    if (!hasFileLikeTransfer(event.dataTransfer)) return;
-    event.preventDefault();
+    if (!allowFileDrop(event)) return;
+    event.stopPropagation();
     titleStage.classList.remove("dragging-file");
+    const file = getFirstImageFileFromTransfer(event.dataTransfer);
+    if (file) {
+      loadImage(file);
+    } else {
+      showToast(getUnsupportedImageMessage());
+      trackEvent("upload_failed", {
+        tool: "title",
+        reason: "unsupported_format"
+      });
+    }
+  });
+  document.addEventListener("dragover", allowFileDrop);
+  document.addEventListener("drop", (event) => {
+    if (event.defaultPrevented || !allowFileDrop(event)) return;
     const file = getFirstImageFileFromTransfer(event.dataTransfer);
     if (file) {
       loadImage(file);
@@ -311,13 +355,13 @@ function deleteSelectedLayer() {
 }
 
 function handleDrag(event) {
-  if (!hasFileLikeTransfer(event.dataTransfer)) return;
-  event.preventDefault();
+  if (!allowFileDrop(event)) return;
   titleStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
 }
 
 function loadImage(file) {
   if (!isImageFile(file)) {
+    setTitleStatus("没有找到可用图片，请选择图片文件。", "error");
     trackEvent("upload_failed", {
       tool: "title",
       reason: "unsupported_format"
@@ -325,6 +369,7 @@ function loadImage(file) {
     showToast(getUnsupportedImageMessage());
     return;
   }
+  setTitleStatus("正在读取图片...", "busy");
   if (sourceObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
   sourceFileName = file.name.replace(/\.[^.]+$/, "") || "title-image";
   sourceObjectUrl = URL.createObjectURL(file);
@@ -338,7 +383,7 @@ function loadImage(file) {
     titleStage.classList.add("has-image");
     titleDownloadButton.disabled = false;
     titleToCompressButton.disabled = false;
-    titleStatusText.textContent = `已载入：${formatFileName(file.name, { max: 24, head: 10, tail: 6 })}`;
+    setTitleStatus("图片已上传，可编辑文字后下载图片。", "success");
     renderPreview();
   };
   image.onerror = () => {
@@ -346,6 +391,7 @@ function loadImage(file) {
       tool: "title",
       reason: "read_failed"
     });
+    setTitleStatus("图片读取失败，请换 JPG 或 PNG 后重试。", "error");
     showToast("图片读取失败。相机 HEIC/HEIF 或部分 TIFF 需要浏览器支持，必要时请先转为 JPG 或 PNG。");
   };
   image.src = sourceObjectUrl;
@@ -855,6 +901,7 @@ async function ensureOutputBlob() {
   estimateTimer = 0;
   outputBlob = await makeOutputBlob();
   if (!outputBlob) {
+    setTitleStatus("导出失败，请调整文字或更换格式后重试。", "error");
     showToast("导出失败，请重试。");
     return null;
   }
@@ -897,30 +944,54 @@ function scheduleOutputEstimate(delay = TITLE_ESTIMATE_DELAY) {
 }
 
 async function downloadTitle() {
-  const blob = await ensureOutputBlob();
-  if (!blob || !outputObjectUrl) return;
-  trackEvent("download_clicked", {
-    tool: "title",
-    format: titleFormatSelect.value,
-    text_layers: textLayers.length
-  });
-  downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "title", titleFormatSelect.value));
+  if (!sourceImage) return;
+  setTitleActionBusy(titleDownloadButton, true, "下载中...");
+  setTitleStatus("正在生成导出图片...", "busy");
+  try {
+    const blob = await ensureOutputBlob();
+    if (!blob || !outputObjectUrl) return;
+    trackEvent("download_clicked", {
+      tool: "title",
+      format: titleFormatSelect.value,
+      text_layers: textLayers.length
+    });
+    downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "title", titleFormatSelect.value));
+    setTitleStatus("下载已开始，标题图片已导出。", "success");
+    showToast("下载已开始");
+  } catch (error) {
+    setTitleStatus("导出失败，请调整文字或更换格式后重试。", "error");
+    showToast("导出失败，请重试");
+  } finally {
+    setTitleActionBusy(titleDownloadButton, false);
+    titleDownloadButton.disabled = !sourceImage;
+  }
 }
 
 async function sendToCompress() {
-  const blob = await ensureOutputBlob();
-  if (!blob) return;
-  trackEvent("compress_clicked", {
-    tool: "title",
-    format: titleFormatSelect.value,
-    text_layers: textLayers.length
-  });
-  await sendBlobToCompress({
-    blob,
-    name: buildExportFileName(sourceFileName, "title", titleFormatSelect.value),
-    type: titleFormatSelect.value,
-    from: "title"
-  });
+  if (!sourceImage) return;
+  setTitleActionBusy(titleToCompressButton, true, "准备中...");
+  setTitleStatus("正在准备发送到压缩页...", "busy");
+  try {
+    const blob = await ensureOutputBlob();
+    if (!blob) return;
+    trackEvent("compress_clicked", {
+      tool: "title",
+      format: titleFormatSelect.value,
+      text_layers: textLayers.length
+    });
+    await sendBlobToCompress({
+      blob,
+      name: buildExportFileName(sourceFileName, "title", titleFormatSelect.value),
+      type: titleFormatSelect.value,
+      from: "title"
+    });
+  } catch (error) {
+    setTitleStatus("发送到压缩页失败，请先下载图片后再压缩。", "error");
+    showToast("发送到压缩页失败");
+  } finally {
+    setTitleActionBusy(titleToCompressButton, false);
+    titleToCompressButton.disabled = !sourceImage;
+  }
 }
 
 function clearOutputCache(invalidateEstimate = true) {
@@ -950,8 +1021,29 @@ function parseHexColor(hex) {
 }
 
 function showToast(message) {
+  if (window.showFeedbackToast) {
+    showFeedbackToast(toast, message);
+    return;
+  }
   toast.textContent = message;
   toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2400);
+}
+
+function setTitleStatus(message, state) {
+  if (window.setFeedbackStatus) {
+    setFeedbackStatus(titleStatusText, message, state);
+    return;
+  }
+  titleStatusText.textContent = message;
+}
+
+function setTitleActionBusy(button, busy, label) {
+  if (window.setActionBusy) {
+    setActionBusy(button, busy, label);
+    return;
+  }
+  button.disabled = busy;
+  if (label) button.textContent = label;
 }

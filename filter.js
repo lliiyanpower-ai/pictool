@@ -17,6 +17,7 @@ import {
 } from "./shared/export-utils.js";
 
 const filterFileInput = document.querySelector("#filterFileInput");
+const filterUploader = filterFileInput.closest(".mini-uploader");
 const filterStage = document.querySelector("#filterStage");
 const filterCanvas = document.querySelector("#filterCanvas");
 const filterPresetGrid = document.querySelector("#filterPresetGrid");
@@ -68,6 +69,35 @@ filterFileInput.addEventListener("change", () => {
   if (file) loadFile(file);
 });
 
+if (filterUploader) {
+  filterUploader.addEventListener("dragenter", (event) => {
+    if (!allowFileDrop(event)) return;
+    filterUploader.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
+  });
+  filterUploader.addEventListener("dragover", (event) => {
+    if (!allowFileDrop(event)) return;
+    filterUploader.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
+  });
+  filterUploader.addEventListener("dragleave", (event) => {
+    if (!filterUploader.contains(event.relatedTarget)) filterUploader.classList.remove("dragging-file");
+  });
+  filterUploader.addEventListener("drop", (event) => {
+    if (!allowFileDrop(event)) return;
+    event.stopPropagation();
+    filterUploader.classList.remove("dragging-file");
+    const file = getFirstImageFileFromTransfer(event.dataTransfer);
+    if (file) {
+      loadFile(file);
+    } else {
+      showToast(getUnsupportedImageMessage());
+      trackEvent("upload_failed", {
+        tool: "filter",
+        reason: "unsupported_format"
+      });
+    }
+  });
+}
+
 filterStage.addEventListener("dragenter", handleDrag);
 filterStage.addEventListener("dragover", handleDrag);
 filterStage.addEventListener("dragleave", (event) => {
@@ -76,9 +106,24 @@ filterStage.addEventListener("dragleave", (event) => {
   }
 });
 filterStage.addEventListener("drop", (event) => {
-  if (!hasFileLikeTransfer(event.dataTransfer)) return;
-  event.preventDefault();
+  if (!allowFileDrop(event)) return;
+  event.stopPropagation();
   filterStage.classList.remove("dragging-file");
+  const file = getFirstImageFileFromTransfer(event.dataTransfer);
+  if (file) {
+    loadFile(file);
+  } else {
+    showToast(getUnsupportedImageMessage());
+    trackEvent("upload_failed", {
+      tool: "filter",
+      reason: "unsupported_format"
+    });
+  }
+});
+
+document.addEventListener("dragover", allowFileDrop);
+document.addEventListener("drop", (event) => {
+  if (event.defaultPrevented || !allowFileDrop(event)) return;
   const file = getFirstImageFileFromTransfer(event.dataTransfer);
   if (file) {
     loadFile(file);
@@ -211,13 +256,13 @@ function syncControlInputs(id) {
 }
 
 function handleDrag(event) {
-  if (!hasFileLikeTransfer(event.dataTransfer)) return;
-  event.preventDefault();
+  if (!allowFileDrop(event)) return;
   filterStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
 }
 
 function loadFile(file) {
   if (!isImageFile(file)) {
+    setFilterStatus("没有找到可用图片，请选择图片文件。", "error");
     showToast(getUnsupportedImageMessage());
     trackEvent("upload_failed", {
       tool: "filter",
@@ -226,6 +271,7 @@ function loadFile(file) {
     return;
   }
 
+  setFilterStatus("正在读取图片...", "busy");
   if (sourceObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
   sourceFileName = file.name.replace(/\.[^.]+$/, "") || "image";
   sourceObjectUrl = URL.createObjectURL(file);
@@ -242,7 +288,7 @@ function loadFile(file) {
     filterStage.classList.add("has-image");
     filterDownloadButton.disabled = false;
     filterToCompressButton.disabled = false;
-    filterStatusText.textContent = `已载入：${file.name}`;
+    setFilterStatus("图片已上传，调整滤镜后可下载图片。", "success");
     scheduleRender();
   };
   image.onerror = () => {
@@ -250,6 +296,7 @@ function loadFile(file) {
       tool: "filter",
       reason: "read_failed"
     });
+    setFilterStatus("图片读取失败，请换 JPG 或 PNG 后重试。", "error");
     showToast("图片读取失败。相机 HEIC/HEIF 或部分 TIFF 需要浏览器支持，必要时请先转为 JPG 或 PNG。");
   };
   image.src = sourceObjectUrl;
@@ -357,6 +404,7 @@ async function ensureOutputBlob() {
   estimateTimer = 0;
   outputBlob = await makeOutputBlob();
   if (!outputBlob) {
+    setFilterStatus("导出失败，请换一张图片或格式后重试。", "error");
     showToast("导出失败，请换一张图片试试。");
     return null;
   }
@@ -414,30 +462,54 @@ async function updateOutputEstimate() {
 }
 
 async function downloadImage() {
-  const blob = await ensureOutputBlob();
-  if (!blob || !outputObjectUrl) return;
-  trackEvent("download_clicked", {
-    tool: "filter",
-    format: filterFormatSelect.value
-  });
+  if (!sourceImage) return;
+  setFilterActionBusy(filterDownloadButton, true, "下载中...");
+  setFilterStatus("正在生成导出图片...", "busy");
+  try {
+    const blob = await ensureOutputBlob();
+    if (!blob || !outputObjectUrl) return;
+    trackEvent("download_clicked", {
+      tool: "filter",
+      format: filterFormatSelect.value
+    });
 
-  downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "filter", filterFormatSelect.value));
+    downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "filter", filterFormatSelect.value));
+    setFilterStatus("下载已开始，滤镜图片已导出。", "success");
+    showToast("下载已开始");
+  } catch (error) {
+    setFilterStatus("导出失败，请调整滤镜或更换格式后重试。", "error");
+    showToast("导出失败，请重试");
+  } finally {
+    setFilterActionBusy(filterDownloadButton, false);
+    filterDownloadButton.disabled = !sourceImage;
+  }
 }
 
 async function sendToCompress() {
-  const blob = await ensureOutputBlob();
-  if (!blob) return;
-  trackEvent("compress_clicked", {
-    tool: "filter",
-    format: filterFormatSelect.value
-  });
+  if (!sourceImage) return;
+  setFilterActionBusy(filterToCompressButton, true, "准备中...");
+  setFilterStatus("正在准备发送到压缩页...", "busy");
+  try {
+    const blob = await ensureOutputBlob();
+    if (!blob) return;
+    trackEvent("compress_clicked", {
+      tool: "filter",
+      format: filterFormatSelect.value
+    });
 
-  await sendBlobToCompress({
-    blob,
-    name: buildExportFileName(sourceFileName, "filter", filterFormatSelect.value),
-    type: filterFormatSelect.value,
-    from: "filter"
-  });
+    await sendBlobToCompress({
+      blob,
+      name: buildExportFileName(sourceFileName, "filter", filterFormatSelect.value),
+      type: filterFormatSelect.value,
+      from: "filter"
+    });
+  } catch (error) {
+    setFilterStatus("发送到压缩页失败，请先下载图片后再压缩。", "error");
+    showToast("发送到压缩页失败");
+  } finally {
+    setFilterActionBusy(filterToCompressButton, false);
+    filterToCompressButton.disabled = !sourceImage;
+  }
 }
 
 function clearOutputCache(invalidateEstimate = true) {
@@ -452,8 +524,29 @@ function clearOutputCache(invalidateEstimate = true) {
 }
 
 function showToast(message) {
+  if (window.showFeedbackToast) {
+    showFeedbackToast(toast, message);
+    return;
+  }
   toast.textContent = message;
   toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2400);
+}
+
+function setFilterStatus(message, state) {
+  if (window.setFeedbackStatus) {
+    setFeedbackStatus(filterStatusText, message, state);
+    return;
+  }
+  filterStatusText.textContent = message;
+}
+
+function setFilterActionBusy(button, busy, label) {
+  if (window.setActionBusy) {
+    setActionBusy(button, busy, label);
+    return;
+  }
+  button.disabled = busy;
+  if (label) button.textContent = label;
 }

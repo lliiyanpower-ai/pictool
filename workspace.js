@@ -25,6 +25,7 @@ import {
 const workspaceFileInput = document.querySelector("#workspaceFileInput");
 const workspaceReplaceInput = document.querySelector("#workspaceReplaceInput");
 const workspaceUploader = document.querySelector("#workspaceUploader");
+const workspaceReplaceButton = workspaceReplaceInput.closest(".workspace-replace-button");
 const workspaceUploadTitle = document.querySelector("#workspaceUploadTitle");
 const workspaceUploadHint = document.querySelector("#workspaceUploadHint");
 const workspaceUploadAction = document.querySelector("#workspaceUploadAction");
@@ -221,19 +222,17 @@ function bindWorkspaceEvents() {
     loadWorkspaceFiles(workspaceReplaceInput.files, "replace");
   });
 
-  [workspaceStage, workspaceUploader].forEach((target) => {
+  [workspaceStage, workspaceUploader, workspaceReplaceButton].filter(Boolean).forEach((target) => {
     target.addEventListener("dragenter", handleWorkspaceDrag);
     target.addEventListener("dragover", handleWorkspaceDrag);
     target.addEventListener("dragleave", handleWorkspaceDragLeave);
     target.addEventListener("drop", handleWorkspaceDrop);
   });
   document.addEventListener("dragover", (event) => {
-    if (!hasFileLikeTransfer(event.dataTransfer)) return;
-    event.preventDefault();
+    allowFileDrop(event);
   });
   document.addEventListener("drop", (event) => {
-    if (!hasFileLikeTransfer(event.dataTransfer)) return;
-    event.preventDefault();
+    if (event.defaultPrevented || !allowFileDrop(event)) return;
     loadWorkspaceFiles(getImageFilesFromTransfer(event.dataTransfer), "drop");
   });
 
@@ -499,25 +498,26 @@ function syncWorkspaceExportDock() {
 }
 
 function handleWorkspaceDrag(event) {
-  if (!hasFileLikeTransfer(event.dataTransfer)) return;
-  event.preventDefault();
+  if (!allowFileDrop(event)) return;
   const hasImage = hasImageLikeDragData(event.dataTransfer);
   workspaceStage.classList.toggle("dragging-file", hasImage);
   workspaceUploader.classList.toggle("dragging-file", hasImage);
+  workspaceReplaceButton?.classList.toggle("dragging-file", hasImage);
 }
 
 function handleWorkspaceDragLeave(event) {
   if (event.currentTarget.contains(event.relatedTarget)) return;
   workspaceStage.classList.remove("dragging-file");
   workspaceUploader.classList.remove("dragging-file");
+  workspaceReplaceButton?.classList.remove("dragging-file");
 }
 
 function handleWorkspaceDrop(event) {
-  if (!hasFileLikeTransfer(event.dataTransfer)) return;
-  event.preventDefault();
+  if (!allowFileDrop(event)) return;
   event.stopPropagation();
   workspaceStage.classList.remove("dragging-file");
   workspaceUploader.classList.remove("dragging-file");
+  workspaceReplaceButton?.classList.remove("dragging-file");
   loadWorkspaceFiles(getImageFilesFromTransfer(event.dataTransfer), "drop");
 }
 
@@ -540,6 +540,7 @@ function loadWorkspaceFile(file, source = "select") {
   workspaceUploadHint.textContent = "正在读取图片，请稍候。";
   workspaceStage.classList.remove("dragging-file");
   workspaceUploader.classList.remove("dragging-file");
+  workspaceReplaceButton?.classList.remove("dragging-file");
   const hadImage = !!state.image;
   const url = URL.createObjectURL(file);
   const image = new Image();
@@ -608,7 +609,9 @@ function handleWorkspaceUploadFailure(reason, source = "unknown") {
     source,
     reason
   });
-  workspaceStatus.textContent = reason === "read_failed" ? "图片读取失败。" : "没有找到可用图片。";
+  workspaceStatus.textContent = reason === "read_failed"
+    ? "图片读取失败，请换 JPG 或 PNG 后重试。"
+    : "没有找到可用图片，请选择图片文件。";
   updateUploadState();
   if (reason !== "read_failed") showToast(getUnsupportedImageMessage());
 }
@@ -946,6 +949,7 @@ function applyCropPreview() {
   state.cropMode = "size";
   workspaceCropWidth.value = Math.round(state.cropOutputSize?.width || state.cropRect.width);
   workspaceCropHeight.value = Math.round(state.cropOutputSize?.height || state.cropRect.height);
+  workspaceStatus.textContent = "已应用裁剪，后续编辑将基于当前结果。";
   syncPanelsFromState();
   syncWorkspaceSmartCropControls();
   renderWorkspace();
@@ -972,6 +976,7 @@ function resetCrop() {
   workspaceSmartCropStatus.textContent = state.smartCropEnabled
     ? "智能构图开启后，会自动尝试保留画面重点。"
     : "智能构图已关闭，可继续手动裁剪。";
+  workspaceStatus.textContent = "已恢复原图，可继续裁剪。";
   syncWorkspaceModeGroups();
   updateWorkspaceModeSummaries();
   syncWorkspaceSmartCropControls();
@@ -2723,6 +2728,7 @@ function updateDownloadButtons(label) {
   const buttonLabel = state.isDownloading ? (label || currentBusyLabel) : "下载图片";
   workspaceDownloadButton.disabled = disabled;
   workspaceDownloadButton.textContent = buttonLabel;
+  workspaceDownloadButton.toggleAttribute("aria-busy", state.isDownloading);
 }
 
 function bucketBytes(bytes) {
@@ -2974,6 +2980,10 @@ function wrapCanvasText(ctx, text, maxWidth, font, letterSpacing = 0) {
 }
 
 function showToast(message) {
+  if (window.showFeedbackToast) {
+    window.showFeedbackToast(toast, message);
+    return;
+  }
   toast.textContent = message;
   toast.classList.add("show");
   window.clearTimeout(showToast.timer);

@@ -28,6 +28,7 @@ document.querySelectorAll("[data-feature]").forEach((button) => {
 
 function showToast(message) {
   toast.textContent = message;
+  toast.dataset.feedbackState = "info";
   toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2400);

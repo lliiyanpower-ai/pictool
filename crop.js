@@ -11,6 +11,7 @@ import {
 } from "./shared/export-utils.js";
 
 const cropFileInput = document.querySelector("#cropFileInput");
+const cropUploader = cropFileInput.closest(".mini-uploader");
 const cropImage = document.querySelector("#cropImage");
 const cropStage = document.querySelector("#cropStage");
 const cropBox = document.querySelector("#cropBox");
@@ -41,7 +42,9 @@ const FACE_DETECT_SAMPLE_MAX = 720;
 const FACE_HEURISTIC_SAMPLE_MAX = 360;
 
 let sourceImage = null;
+let originalImage = null;
 let sourceFileName = "image";
+let originalObjectUrl = "";
 let sourceObjectUrl = "";
 let outputObjectUrl = "";
 let imageRect = null;
@@ -91,19 +94,46 @@ cropFileInput.addEventListener("change", () => {
   if (file) loadFile(file);
 });
 
+if (cropUploader) {
+  cropUploader.addEventListener("dragenter", (event) => {
+    if (!allowFileDrop(event)) return;
+    cropUploader.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
+  });
+  cropUploader.addEventListener("dragover", (event) => {
+    if (!allowFileDrop(event)) return;
+    cropUploader.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
+  });
+  cropUploader.addEventListener("dragleave", (event) => {
+    if (!cropUploader.contains(event.relatedTarget)) cropUploader.classList.remove("dragging-file");
+  });
+  cropUploader.addEventListener("drop", (event) => {
+    if (!allowFileDrop(event)) return;
+    event.stopPropagation();
+    cropUploader.classList.remove("dragging-file");
+    const file = getFirstImageFileFromTransfer(event.dataTransfer);
+    if (file) {
+      loadFile(file);
+    } else {
+      showToast(getUnsupportedImageMessage());
+      trackEvent("upload_failed", {
+        tool: "crop",
+        reason: "unsupported_format"
+      });
+    }
+  });
+}
+
 document.addEventListener("paste", (event) => {
   const file = getFirstImageFileFromTransfer(event.clipboardData);
   if (file) loadFile(file);
 });
 
 cropStage.addEventListener("dragenter", (event) => {
-  if (!hasFileLikeTransfer(event.dataTransfer)) return;
-  event.preventDefault();
+  if (!allowFileDrop(event)) return;
   cropStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
 });
 cropStage.addEventListener("dragover", (event) => {
-  if (!hasFileLikeTransfer(event.dataTransfer)) return;
-  event.preventDefault();
+  if (!allowFileDrop(event)) return;
   cropStage.classList.toggle("dragging-file", hasImageLikeTransfer(event.dataTransfer));
 });
 cropStage.addEventListener("dragleave", (event) => {
@@ -112,9 +142,24 @@ cropStage.addEventListener("dragleave", (event) => {
   }
 });
 cropStage.addEventListener("drop", (event) => {
-  if (!hasFileLikeTransfer(event.dataTransfer)) return;
-  event.preventDefault();
+  if (!allowFileDrop(event)) return;
+  event.stopPropagation();
   cropStage.classList.remove("dragging-file");
+  const file = getFirstImageFileFromTransfer(event.dataTransfer);
+  if (file) {
+    loadFile(file);
+  } else {
+    showToast(getUnsupportedImageMessage());
+    trackEvent("upload_failed", {
+      tool: "crop",
+      reason: "unsupported_format"
+    });
+  }
+});
+
+document.addEventListener("dragover", allowFileDrop);
+document.addEventListener("drop", (event) => {
+  if (event.defaultPrevented || !allowFileDrop(event)) return;
   const file = getFirstImageFileFromTransfer(event.dataTransfer);
   if (file) {
     loadFile(file);
@@ -295,6 +340,7 @@ function getButtonMainText(button) {
 
 async function loadFile(file) {
   if (!isImageFile(file)) {
+    setCropStatus("没有找到可用图片，请选择图片文件。", "error");
     showToast(getUnsupportedImageMessage());
     trackEvent("upload_failed", {
       tool: "crop",
@@ -303,15 +349,18 @@ async function loadFile(file) {
     return;
   }
 
+  setCropStatus("正在读取图片...", "busy");
   revokeUrls();
   smartCropRunId += 1;
   hasManualCrop = false;
   faceDetectionCache = null;
   sourceFileName = file.name.replace(/\.[^.]+$/, "") || "image";
-  sourceObjectUrl = URL.createObjectURL(file);
+  originalObjectUrl = URL.createObjectURL(file);
+  sourceObjectUrl = originalObjectUrl;
 
   const image = new Image();
   image.onload = () => {
+    originalImage = image;
     sourceImage = image;
     trackEvent("image_uploaded", {
       tool: "crop",
@@ -326,7 +375,7 @@ async function loadFile(file) {
     cropApplyButton.disabled = false;
     cropDownloadButton.disabled = true;
     sendToCompressButton.disabled = true;
-    cropStatusText.textContent = `已载入：${file.name}`;
+    setCropStatus("图片已上传，调整裁剪框后点击应用。", "success");
     smartCropStatus.textContent = smartCropEnabled
       ? "正在智能构图..."
       : "智能构图已关闭，可继续手动裁剪。";
@@ -340,6 +389,7 @@ async function loadFile(file) {
       tool: "crop",
       reason: "read_failed"
     });
+    setCropStatus("图片读取失败，请换 JPG 或 PNG 后重试。", "error");
     showToast("图片读取失败。相机 HEIC/HEIF 或部分 TIFF 需要浏览器支持，必要时请先转为 JPG 或 PNG。");
   };
   image.src = sourceObjectUrl;
@@ -1200,7 +1250,7 @@ function readInputRatio() {
 }
 
 async function renderOutput() {
-  if (!sourceImage || !cropRect) return;
+  if (!sourceImage || !cropRect) return false;
   trackToolEvent("crop", "applied", {
     tool: "crop",
     mode: cropMode,
@@ -1209,21 +1259,72 @@ async function renderOutput() {
     format: cropFormatSelect.value
   });
 
-  const { blob, target } = await createOutputBlob();
-  if (!blob) {
-    showToast("导出失败，请换一张图片试试。");
-    return;
-  }
+  setCropStatus("正在生成裁剪预览...", "busy");
+  setCropActionBusy(cropApplyButton, true, "应用中...");
+  try {
+    const { blob, target } = await createOutputBlob();
+    if (!blob) {
+      setCropStatus("裁剪生成失败，请调整裁剪框后重试。", "error");
+      showToast("裁剪生成失败");
+      return false;
+    }
 
-  outputBlob = blob;
-  outputTarget = target;
-  if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
-  outputObjectUrl = URL.createObjectURL(blob);
-  showOutputPreview(target);
-  cropDownloadButton.disabled = false;
-  sendToCompressButton.disabled = false;
-  cropOutputSize.textContent = formatBytes(blob.size);
-  cropStatusText.textContent = `已生成 ${target.width} × ${target.height} 的裁剪预览。`;
+    smartCropRunId += 1;
+    outputBlob = blob;
+    outputTarget = target;
+    if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
+    outputObjectUrl = URL.createObjectURL(blob);
+    await commitAppliedCrop(blob, target);
+    showOutputPreview(target);
+    cropDownloadButton.disabled = false;
+    sendToCompressButton.disabled = false;
+    cropOutputSize.textContent = formatBytes(blob.size);
+    setCropStatus(`裁剪已应用，尺寸 ${target.width} × ${target.height}，可下载图片。`, "success");
+    showToast("裁剪已应用");
+    return true;
+  } catch (error) {
+    invalidateOutput();
+    setCropStatus("应用失败，请换一张图片或调整裁剪框后重试。", "error");
+    showToast("应用失败，请重试");
+    return false;
+  } finally {
+    setCropActionBusy(cropApplyButton, false);
+    cropApplyButton.disabled = !sourceImage || !cropRect;
+  }
+}
+
+function commitAppliedCrop(blob, target) {
+  return new Promise((resolve, reject) => {
+    const nextSourceUrl = URL.createObjectURL(blob);
+    const nextImage = new Image();
+    nextImage.onload = () => {
+      if (sourceObjectUrl && sourceObjectUrl !== originalObjectUrl) {
+        URL.revokeObjectURL(sourceObjectUrl);
+      }
+      sourceImage = nextImage;
+      sourceObjectUrl = nextSourceUrl;
+      imageRect = null;
+      cropRect = { x: 0, y: 0, width: target.width, height: target.height };
+      activeSize = "custom";
+      activeRatio = target.width / target.height;
+      hasManualCrop = false;
+      faceDetectionCache = null;
+      syncingInputs = true;
+      cropWidthInput.value = target.width;
+      cropHeightInput.value = target.height;
+      syncingInputs = false;
+      sizePanel.querySelectorAll("button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.size === "custom");
+      });
+      updateModeSummaries();
+      resolve();
+    };
+    nextImage.onerror = () => {
+      URL.revokeObjectURL(nextSourceUrl);
+      reject(new Error("Unable to load applied crop"));
+    };
+    nextImage.src = nextSourceUrl;
+  });
 }
 
 async function createOutputBlob() {
@@ -1284,15 +1385,22 @@ async function downloadOutput() {
   if (!sourceImage || !cropRect) return;
 
   if (!outputBlob || !outputObjectUrl) {
-    await renderOutput();
+    const rendered = await renderOutput();
+    if (!rendered) return;
   }
   if (!outputBlob || !outputObjectUrl) return;
+  setCropActionBusy(cropDownloadButton, true, "下载中...");
+  setCropStatus("正在下载裁剪图片...", "busy");
   trackEvent("download_clicked", {
     tool: "crop",
     format: cropFormatSelect.value
   });
 
   downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "crop", cropFormatSelect.value));
+  setCropStatus("下载已开始，裁剪图片已导出。", "success");
+  showToast("下载已开始");
+  setCropActionBusy(cropDownloadButton, false);
+  cropDownloadButton.disabled = !outputBlob;
 }
 
 function resetCrop() {
@@ -1305,7 +1413,41 @@ function resetCrop() {
   hasManualCrop = false;
   faceDetectionCache = null;
   smartCropBusy = false;
+  if (!originalImage || !originalObjectUrl) {
+    clearCropState();
+    return;
+  }
+
+  if (sourceObjectUrl && sourceObjectUrl !== originalObjectUrl) {
+    URL.revokeObjectURL(sourceObjectUrl);
+  }
+  if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
+  sourceImage = originalImage;
+  sourceObjectUrl = originalObjectUrl;
+  outputObjectUrl = "";
+  cropRect = null;
+  imageRect = null;
+  outputBlob = null;
+  outputTarget = null;
+  cropImage.src = sourceObjectUrl;
+  cropStage.classList.add("has-image");
+  cropStage.classList.remove("has-output", "dragging-file");
+  cropApplyButton.disabled = false;
+  cropDownloadButton.disabled = true;
+  sendToCompressButton.disabled = true;
+  cropOutputSize.textContent = "--";
+  cropStatusText.textContent = "已恢复原图，可继续裁剪。";
+  smartCropStatus.textContent = smartCropEnabled
+    ? "智能构图开启后，会自动尝试保留画面重点。"
+    : "智能构图已关闭，可继续手动裁剪。";
+  updateSmartCropControls();
+  renderImage();
+  queueSmartCrop("reset", { force: true });
+}
+
+function clearCropState() {
   cropFileInput.value = "";
+  originalImage = null;
   sourceImage = null;
   cropRect = null;
   imageRect = null;
@@ -1336,7 +1478,7 @@ function beginCropEdit() {
   restoreCropEditing();
   invalidateOutput();
   if (sourceImage) {
-    cropStatusText.textContent = "调整裁剪框后点击应用生成预览。";
+    cropStatusText.textContent = "调整裁剪框后点击应用，当前结果会成为后续裁剪基础。";
   }
 }
 
@@ -1402,32 +1544,76 @@ function writeSmartCropPreference(value) {
 
 async function sendToCompress() {
   if (!outputBlob || !outputObjectUrl) {
-    await renderOutput();
+    const rendered = await renderOutput();
+    if (!rendered) return;
   }
   if (!outputBlob) return;
+  setCropActionBusy(sendToCompressButton, true, "准备中...");
+  setCropStatus("正在准备发送到压缩页...", "busy");
   trackEvent("compress_clicked", {
     tool: "crop",
     format: cropFormatSelect.value
   });
 
-  await sendBlobToCompress({
-    blob: outputBlob,
-    name: buildExportFileName(sourceFileName, "crop", cropFormatSelect.value),
-    type: cropFormatSelect.value,
-    from: "crop"
-  });
+  try {
+    await sendBlobToCompress({
+      blob: outputBlob,
+      name: buildExportFileName(sourceFileName, "crop", cropFormatSelect.value),
+      type: cropFormatSelect.value,
+      from: "crop"
+    });
+  } catch (error) {
+    setCropStatus("发送到压缩页失败，请先下载图片后再压缩。", "error");
+    showToast("发送到压缩页失败");
+  } finally {
+    setCropActionBusy(sendToCompressButton, false);
+    sendToCompressButton.disabled = !outputBlob;
+  }
 }
 
 function revokeUrls() {
-  if (sourceObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
+  if (sourceObjectUrl && sourceObjectUrl !== originalObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
+  if (originalObjectUrl) URL.revokeObjectURL(originalObjectUrl);
   if (outputObjectUrl) URL.revokeObjectURL(outputObjectUrl);
+  originalObjectUrl = "";
   sourceObjectUrl = "";
   outputObjectUrl = "";
 }
 
 function showToast(message) {
+  if (window.showFeedbackToast) {
+    window.showFeedbackToast(toast, message);
+    return;
+  }
   toast.textContent = message;
   toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2400);
+}
+
+function setCropStatus(message, state) {
+  if (window.setFeedbackStatus) {
+    window.setFeedbackStatus(cropStatusText, message, state);
+    return;
+  }
+  cropStatusText.textContent = message;
+}
+
+function setCropActionBusy(button, busy, label) {
+  if (window.setActionBusy) {
+    window.setActionBusy(button, busy, label);
+    return;
+  }
+  if (!button) return;
+  if (busy) {
+    if (!button.dataset.idleText) button.dataset.idleText = button.textContent;
+    button.disabled = true;
+    if (label) button.textContent = label;
+    return;
+  }
+  button.disabled = false;
+  if (button.dataset.idleText) {
+    button.textContent = button.dataset.idleText;
+    delete button.dataset.idleText;
+  }
 }

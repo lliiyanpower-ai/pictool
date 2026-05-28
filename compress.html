@@ -6,7 +6,7 @@
     <title>图片压缩 - 图片工具箱</title>
     <meta
       name="description"
-      content="在线图片压缩工具，支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片，提供压缩质量和最大宽高设置。"
+      content="在线图片压缩工具，支持批量压缩 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF 等图片，上传后自动压缩，可调整导出格式和压缩质量。"
     />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://pictool.com.cn/compress.html" />
@@ -35,13 +35,13 @@
         "operatingSystem": "Web",
         "isAccessibleForFree": true,
         "url": "https://pictool.com.cn/compress.html",
-        "description": "在线图片压缩工具，支持 JPG、PNG、WebP，自定义压缩质量和最大宽高。",
+        "description": "在线图片压缩工具，支持 JPG、PNG、WebP，上传后自动压缩，可自定义导出格式和压缩质量。",
         "inLanguage": "zh-CN",
         "featureList": [
           "支持批量压缩",
           "支持 JPG、PNG、WebP、GIF、AVIF、BMP、TIFF、HEIC/HEIF",
           "支持压缩质量调节",
-          "支持最大宽度和高度设置"
+          "上传后自动压缩"
         ]
       }
     </script>
@@ -89,34 +89,6 @@
                 <span>压缩质量 <b id="qualityValue">78%</b></span>
                 <input id="qualityRange" type="range" min="10" max="100" value="78" />
               </label>
-
-              <div class="dimension-row">
-                <label>
-                  <span>最大宽度</span>
-                  <input id="maxWidthInput" type="number" min="1" placeholder="原始" />
-                </label>
-                <label>
-                  <span>最大高度</span>
-                  <input id="maxHeightInput" type="number" min="1" placeholder="原始" />
-                </label>
-              </div>
-
-              <div class="option-row">
-                <label class="checkbox-line">
-                  <input id="keepSizeCheck" type="checkbox" checked />
-                  <span>保持原图尺寸</span>
-                </label>
-                <label class="checkbox-line">
-                  <input id="aspectLockCheck" type="checkbox" checked />
-                  <span>绑定宽高比例</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="compress-actions" aria-label="批量图片操作">
-              <button class="compress-button" id="batchCompressButton" type="button" disabled>压缩图片</button>
-              <button id="batchZipButton" type="button" disabled>打包下载 ZIP</button>
-              <button id="resetButton" type="button" disabled>重新选择</button>
             </div>
 
             <div class="batch-panel hidden" id="batchPanel">
@@ -128,6 +100,11 @@
             </div>
 
             <p class="status" id="statusText" role="status">等待上传图片</p>
+
+            <div class="compress-actions" aria-label="图片操作">
+              <button id="batchZipButton" type="button" disabled>下载压缩图片</button>
+              <button id="resetButton" type="button" disabled>清空</button>
+            </div>
           </div>
 
           <div class="preview-panel">
@@ -171,6 +148,7 @@
             </div>
           </div>
         </div>
+
       </section>
     </main>
 
