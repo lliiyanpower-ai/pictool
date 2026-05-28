@@ -91,10 +91,6 @@ const workspaceFormat = document.querySelector("#workspaceFormat");
 const qualityRange = document.querySelector("#qualityRange");
 const qualityValue = document.querySelector("#qualityValue");
 const workspaceQualityControl = document.querySelector("#workspaceQualityControl");
-const maxWidthInput = document.querySelector("#maxWidthInput");
-const maxHeightInput = document.querySelector("#maxHeightInput");
-const workspaceKeepSizeCheck = document.querySelector("#workspaceKeepSizeCheck");
-const workspaceAspectLockCheck = document.querySelector("#workspaceAspectLockCheck");
 const zoomOutButton = document.querySelector("#zoomOutButton");
 const zoomInButton = document.querySelector("#zoomInButton");
 const zoomLabel = document.querySelector("#zoomLabel");
@@ -189,7 +185,6 @@ const state = {
   future: []
 };
 
-let syncingExportSize = false;
 let workspaceFaceDetector = null;
 const workspaceFilterControlInputs = new Map();
 
@@ -390,10 +385,8 @@ function bindWorkspaceEvents() {
   bringTextLayerButton.addEventListener("click", bringSelectedTextLayerForward);
   deleteTextLayerButton.addEventListener("click", deleteSelectedTextLayer);
 
-  [workspaceFormat, qualityRange, maxWidthInput, maxHeightInput].forEach((input) => {
+  [workspaceFormat, qualityRange].forEach((input) => {
     input.addEventListener("input", () => {
-      if (input === maxWidthInput) syncExportBoundDimension("width");
-      if (input === maxHeightInput) syncExportBoundDimension("height");
       updateQualityControlState();
       clearOutputCache(true, { clearPreview: !shouldShowCompressedPreview() });
       scheduleOutputEstimate();
@@ -419,23 +412,6 @@ function bindWorkspaceEvents() {
       format: workspaceFormat.value
     });
   });
-  [maxWidthInput, maxHeightInput, workspaceKeepSizeCheck, workspaceAspectLockCheck].forEach((input) => {
-    input.addEventListener("change", () => {
-      trackEvent("workspace_export_size_changed", {
-        tool: "workspace",
-        keep_size: workspaceKeepSizeCheck.checked,
-        aspect_lock: workspaceAspectLockCheck.checked,
-        dimension_bucket: getExportDimensionBucket()
-      });
-    });
-  });
-  workspaceKeepSizeCheck.addEventListener("change", syncExportSizeLock);
-  workspaceAspectLockCheck.addEventListener("change", () => {
-    clearOutputCache(true, { clearPreview: !shouldShowCompressedPreview() });
-    scheduleOutputEstimate();
-    scheduleCompressedPreviewRender();
-  });
-  syncExportSizeLock();
 
   workspaceDownloadButton.addEventListener("click", downloadWorkspaceImage);
 
@@ -2018,8 +1994,8 @@ function renderToCanvas(canvas, forExport, forcedOutput = null) {
   ctx.drawImage(state.image, source.x, source.y, source.width, source.height, 0, 0, renderOutput.width, renderOutput.height);
   applyWorkspaceFiltersToCanvas(canvas);
 
-  const scaleX = renderOutput.width / source.width;
-  const scaleY = renderOutput.height / source.height;
+  const scaleX = renderOutput.width / output.width;
+  const scaleY = renderOutput.height / output.height;
   state.textLayers.forEach((layer) => drawWorkspaceText(ctx, layer, scaleX, scaleY, !forExport && layer.id === state.selectedTextId));
 
   if (!forExport) requestAnimationFrame(positionWorkspaceCropBox);
@@ -2157,30 +2133,12 @@ function sameRect(a, b) {
   return Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5;
 }
 
-function getOutputSize(forExport) {
+function getOutputSize() {
   const rect = getActiveCropRect() || { width: 1920, height: 960 };
-  let width = Math.max(1, Math.round(state.cropOutputSize?.width || rect.width));
-  let height = Math.max(1, Math.round(state.cropOutputSize?.height || rect.height));
-  if (forExport && !workspaceKeepSizeCheck.checked) {
-    const maxWidth = Number(maxWidthInput.value);
-    const maxHeight = Number(maxHeightInput.value);
-    const hasWidth = Number.isFinite(maxWidth) && maxWidth > 0;
-    const hasHeight = Number.isFinite(maxHeight) && maxHeight > 0;
-
-    if (workspaceAspectLockCheck.checked) {
-      const scale = Math.min(
-        hasWidth ? maxWidth / width : 1,
-        hasHeight ? maxHeight / height : 1,
-        1
-      );
-      width = Math.max(1, Math.round(width * scale));
-      height = Math.max(1, Math.round(height * scale));
-    } else {
-      width = Math.max(1, Math.min(hasWidth ? maxWidth : width, width));
-      height = Math.max(1, Math.min(hasHeight ? maxHeight : height, height));
-    }
-  }
-  return { width, height };
+  return {
+    width: Math.max(1, Math.round(state.cropOutputSize?.width || rect.width)),
+    height: Math.max(1, Math.round(state.cropOutputSize?.height || rect.height))
+  };
 }
 
 function getExportDimensionBucket() {
@@ -2191,50 +2149,6 @@ function getExportDimensionBucket() {
   if (pixels < 1920 * 1080) return "medium";
   if (pixels < 3840 * 2160) return "large";
   return "ultra";
-}
-
-function updateExportSizePlaceholders() {
-  if (!state.image || !state.cropRect) {
-    maxWidthInput.placeholder = "原始";
-    maxHeightInput.placeholder = "原始";
-    return;
-  }
-  const output = getOutputSize(false);
-  maxWidthInput.placeholder = `原始（${output.width}）`;
-  maxHeightInput.placeholder = `原始（${output.height}）`;
-}
-
-function syncExportSizeLock() {
-  const locked = workspaceKeepSizeCheck.checked;
-  maxWidthInput.disabled = locked;
-  maxHeightInput.disabled = locked;
-  workspaceAspectLockCheck.disabled = locked;
-  if (locked) {
-    maxWidthInput.value = "";
-    maxHeightInput.value = "";
-  }
-  updateExportSizePlaceholders();
-  clearOutputCache(true, { clearPreview: !shouldShowCompressedPreview() });
-  scheduleOutputEstimate();
-  scheduleCompressedPreviewRender();
-}
-
-function syncExportBoundDimension(changedField) {
-  if (syncingExportSize || workspaceKeepSizeCheck.checked || !workspaceAspectLockCheck.checked || !state.image) return;
-
-  const output = getOutputSize(false);
-  const ratio = output.width / output.height;
-  syncingExportSize = true;
-
-  if (changedField === "width") {
-    const width = Number(maxWidthInput.value);
-    maxHeightInput.value = Number.isFinite(width) && width > 0 ? Math.max(1, Math.round(width / ratio)) : "";
-  } else {
-    const height = Number(maxHeightInput.value);
-    maxWidthInput.value = Number.isFinite(height) && height > 0 ? Math.max(1, Math.round(height * ratio)) : "";
-  }
-
-  syncingExportSize = false;
 }
 
 function fitWorkspaceCanvas() {
@@ -2777,7 +2691,7 @@ function beginWorkspaceCropDrag(event, point, handle, captureTarget) {
 
 function startTextDrag(event) {
   if (!state.textLayers.length) return false;
-  const point = clientToCanvasPoint(event);
+  const point = clientToOutputPoint(event);
   const resizeHit = findTextResizeHandle(point);
   if (resizeHit && !resizeHit.locked) {
     recordHistory();
@@ -2809,7 +2723,7 @@ function startTextDrag(event) {
 
 function moveCanvasDrag(event) {
   if (!state.draggingCanvas) return;
-  const point = state.draggingCanvas.type === "crop" ? clientToImagePoint(event) : clientToCanvasPoint(event);
+  const point = state.draggingCanvas.type === "crop" ? clientToImagePoint(event) : clientToOutputPoint(event);
   if (state.draggingCanvas.type === "crop") {
     const drag = state.draggingCanvas;
     const dx = point.x - state.draggingCanvas.startX;
@@ -2911,6 +2825,16 @@ function clientToCanvasPoint(event) {
   return {
     x: ((event.clientX - rect.left) / rect.width) * source.width,
     y: ((event.clientY - rect.top) / rect.height) * source.height
+  };
+}
+
+function clientToOutputPoint(event) {
+  const rect = workspaceCanvas.getBoundingClientRect();
+  const output = getOutputSize(false);
+  if (!rect.width || !rect.height || !output) return { x: 0, y: 0 };
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * output.width,
+    y: ((event.clientY - rect.top) / rect.height) * output.height
   };
 }
 

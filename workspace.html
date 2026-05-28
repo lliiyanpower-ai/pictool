@@ -280,9 +280,9 @@
 
         <section class="workspace-tool-panel" data-panel="export">
           <h2>导出图片</h2>
-          <p class="workspace-note">调整格式、质量和尺寸后下载。</p>
+          <p class="workspace-note">调整格式和质量后下载。</p>
           <div id="workspaceExportLeftDock"></div>
-          <div class="workspace-note hidden" id="workspaceExportDesktopNote">在右侧导出图片面板调整格式、质量和最大尺寸，下载会使用当前画布结果。</div>
+          <div class="workspace-note hidden" id="workspaceExportDesktopNote">在右侧导出图片面板调整格式和质量，下载会使用当前画布结果。</div>
         </section>
       </aside>
 
@@ -334,26 +334,6 @@
                 <span>压缩质量 <b id="qualityValue">78%</b></span>
                 <input id="qualityRange" type="range" min="10" max="100" value="78" />
               </label>
-              <div class="workspace-two-fields">
-                <label class="workspace-field">
-                  <span>最大宽度</span>
-                  <input id="maxWidthInput" type="number" min="1" placeholder="原始" />
-                </label>
-                <label class="workspace-field">
-                  <span>最大高度</span>
-                  <input id="maxHeightInput" type="number" min="1" placeholder="原始" />
-                </label>
-              </div>
-              <div class="workspace-option-row workspace-export-options">
-                <label>
-                  <input id="workspaceKeepSizeCheck" type="checkbox" checked />
-                  <span>保持原图尺寸</span>
-                </label>
-                <label>
-                  <input id="workspaceAspectLockCheck" type="checkbox" checked />
-                  <span>绑定宽高比例</span>
-                </label>
-              </div>
               <div class="workspace-export-estimate">
                 <span>预计导出大小</span>
                 <strong id="workspaceExportEstimate">--</strong>
