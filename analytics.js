@@ -4,6 +4,9 @@
     if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
       return "http://127.0.0.1:3000/api/track";
     }
+    if (location.hostname === "pictool.com.cn" || location.hostname === "www.pictool.com.cn") {
+      return "https://api.pictool.com.cn/api/track";
+    }
     return "";
   }
 
