@@ -1,0 +1,24 @@
+{
+  "name": "pictool-analytics-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted analytics receiver and metrics dashboard for pictool.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "NODE_ENV=development node src/app.js",
+    "test": "node tests/insight-rules.test.js",
+    "check": "node --check src/app.js && node --check src/config.js && node --check src/db.js && node --check src/store.js && node --check src/routes/track.js && node --check src/routes/metrics.js && node --check src/routes/admin.js && node --check src/routes/health.js && node --check src/middleware/cors.js && node --check src/middleware/rate-limit.js && node --check src/middleware/admin-auth.js && node --check src/services/metrics-service.js && node --check src/services/insights-service.js && node --check src/utils/sanitize.js && node --check src/utils/user-agent.js && node --check src/utils/date-range.js && node --check src/utils/metrics.js && node --check src/utils/labels.js && node --check src/utils/insight-rules.js"
+  },
+  "dependencies": {
+    "antd": "^5.29.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.19.2",
+    "pg": "^8.13.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

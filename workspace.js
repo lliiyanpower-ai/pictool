@@ -1780,10 +1780,6 @@ function writeSmartCropPreference(value) {
 function applyFilterPreset(preset) {
   recordHistory();
   state.activeFilterPreset = preset;
-  trackToolEvent("filter", "preset_selected", {
-    tool: "workspace",
-    preset
-  });
   workspaceFilterPresetGrid.querySelectorAll("[data-filter-preset]").forEach((button) => {
     button.classList.toggle("active", button.dataset.filterPreset === state.activeFilterPreset);
   });
@@ -2574,6 +2570,7 @@ async function downloadWorkspaceImage() {
     trackEvent("workspace_download_clicked", {
       tool: "workspace",
       format: workspaceFormat.value,
+      preset: state.activeFilterPreset,
       text_layers: state.textLayers.length,
       dimension_bucket: getExportDimensionBucket()
     });
@@ -2581,6 +2578,7 @@ async function downloadWorkspaceImage() {
     trackEvent("workspace_download_success", {
       tool: "workspace",
       format: workspaceFormat.value,
+      preset: state.activeFilterPreset,
       output_size_bucket: bucketBytes(blob.size),
       output_dimension_bucket: getExportDimensionBucket()
     });

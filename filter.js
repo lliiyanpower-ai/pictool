@@ -190,10 +190,6 @@ function buildPresetGrid() {
   filterPresetGrid.querySelectorAll("[data-preset]").forEach((button) => {
     button.addEventListener("click", () => {
       activePreset = button.dataset.preset;
-      trackToolEvent("filter", "preset_selected", {
-        tool: "filter",
-        preset: activePreset
-      });
       filterPresetGrid.querySelectorAll("[data-preset]").forEach((item) => {
         item.classList.toggle("active", item === button);
       });
@@ -227,6 +223,10 @@ function buildControls(defs, target) {
 
 function buildAdvancedControls() {
   buildControls(advancedTabs[activeAdvancedTab], advancedControls);
+}
+
+function getActivePresetId() {
+  return filterPresetGrid.querySelector(".filter-preset.active[data-preset]")?.dataset.preset || activePreset || "none";
 }
 
 function updateControl(id, rawValue) {
@@ -470,7 +470,8 @@ async function downloadImage() {
     if (!blob || !outputObjectUrl) return;
     trackEvent("download_clicked", {
       tool: "filter",
-      format: filterFormatSelect.value
+      format: filterFormatSelect.value,
+      preset: getActivePresetId()
     });
 
     downloadUrl(outputObjectUrl, buildExportFileName(sourceFileName, "filter", filterFormatSelect.value));

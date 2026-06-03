@@ -138,8 +138,14 @@
         s.parentNode.insertBefore(hm, s);
       })();
     </script>
-    <script src="analytics.js"></script>
-    <script src="image-support.js"></script>
-    <script type="module" src="filter.js"></script>
+    <script src="analytics.js?v=20260602-final-filter-v2"></script>
+    <script>
+      configureTracking({
+        enabled: true,
+        debug: false
+      });
+    </script>
+    <script src="image-support.js?v=20260602-presets"></script>
+    <script type="module" src="filter.js?v=20260602-final-filter-v2"></script>
   </body>
 </html>

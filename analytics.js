@@ -1,10 +1,23 @@
 (function () {
+  function getDefaultEndpoint() {
+    if (window.PICTOOL_TRACKING_ENDPOINT) return window.PICTOOL_TRACKING_ENDPOINT;
+    if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
+      return "http://127.0.0.1:3000/api/track";
+    }
+    return "";
+  }
+
   const config = {
     enabled: true,
     debug: false,
-    endpoint: "",
+    endpoint: getDefaultEndpoint(),
     app: "image-toolbox"
   };
+  const SESSION_STORAGE_KEY = "pictool.analytics.sessionId";
+  const FLOW_STORAGE_KEY = "pictool.analytics.flowId";
+  let fallbackSessionId = "";
+  let fallbackStepIndex = 0;
+  let currentFlowId = "";
 
   function getPageName() {
     const path = location.pathname.split("/").pop() || "index.html";
@@ -95,6 +108,8 @@
     const payload = {};
     Object.entries(details || {}).forEach(([key, value]) => {
       if (blockedKeys.has(key)) return;
+      if (typeof value === "string" && /data:image\/|base64,/i.test(value)) return;
+      if (value && typeof value === "object") return;
       if (key === "file_size_mb") return;
       if (key === "output_size_mb") return;
       if (key === "output_width" || key === "output_height") return;
@@ -119,6 +134,87 @@
       payload.output_dimension_bucket = bucketDimensions(details.output_width, details.output_height);
     }
     return payload;
+  }
+
+  function createSessionId() {
+    const timestamp = Date.now();
+    if (window.crypto?.getRandomValues) {
+      const values = new Uint32Array(2);
+      window.crypto.getRandomValues(values);
+      return `sid_${values[0].toString(36)}${values[1].toString(36)}_${timestamp}`;
+    }
+    return `sid_${Math.random().toString(36).slice(2, 12)}_${timestamp}`;
+  }
+
+  function createFlowId() {
+    const timestamp = Date.now();
+    if (window.crypto?.getRandomValues) {
+      const values = new Uint32Array(2);
+      window.crypto.getRandomValues(values);
+      return `flow_${values[0].toString(36)}${values[1].toString(36)}_${timestamp}`;
+    }
+    return `flow_${Math.random().toString(36).slice(2, 12)}_${timestamp}`;
+  }
+
+  function getSessionId() {
+    try {
+      const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (stored) return stored;
+      const sessionId = createSessionId();
+      sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+      return sessionId;
+    } catch (error) {
+      if (!fallbackSessionId) fallbackSessionId = createSessionId();
+      return fallbackSessionId;
+    }
+  }
+
+  function getStepStorageKey(sessionId) {
+    return `${SESSION_STORAGE_KEY}.${sessionId}.stepIndex`;
+  }
+
+  function getNextStepIndex(sessionId) {
+    try {
+      const key = getStepStorageKey(sessionId);
+      const current = Number(sessionStorage.getItem(key));
+      const next = Number.isFinite(current) && current > 0 ? current + 1 : 1;
+      sessionStorage.setItem(key, String(next));
+      return next;
+    } catch (error) {
+      fallbackStepIndex += 1;
+      return fallbackStepIndex;
+    }
+  }
+
+  function readStoredFlowId() {
+    try {
+      return sessionStorage.getItem(FLOW_STORAGE_KEY) || "";
+    } catch (error) {
+      return currentFlowId || "";
+    }
+  }
+
+  function writeStoredFlowId(flowId) {
+    currentFlowId = flowId || "";
+    try {
+      if (currentFlowId) sessionStorage.setItem(FLOW_STORAGE_KEY, currentFlowId);
+      else sessionStorage.removeItem(FLOW_STORAGE_KEY);
+    } catch (error) {
+      // sessionStorage 不可用时保留页面内 flow_id。
+    }
+    return currentFlowId;
+  }
+
+  function startFlow() {
+    return writeStoredFlowId(createFlowId());
+  }
+
+  function getFlowId(eventName) {
+    if (eventName === "image_uploaded" || eventName === "workspace_image_uploaded") {
+      return startFlow();
+    }
+    currentFlowId = currentFlowId || readStoredFlowId();
+    return currentFlowId || "";
   }
 
   function sanitizeSmartCropDetails(tool, action, details) {
@@ -151,10 +247,51 @@
       "";
   }
 
+  function logEndpointError(stage, error) {
+    if (config.debug) console.warn(`[trackEvent:${stage}]`, error);
+  }
+
+  function sendWithFetch(body) {
+    if (!window.fetch) return;
+    return window.fetch(config.endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body,
+      keepalive: true,
+      mode: "cors"
+    }).catch((error) => logEndpointError("fetch", error));
+  }
+
+  function isLocalEndpoint() {
+    try {
+      const endpointUrl = new URL(config.endpoint, location.href);
+      return endpointUrl.hostname === "127.0.0.1" || endpointUrl.hostname === "localhost";
+    } catch (error) {
+      return false;
+    }
+  }
+
   function sendToEndpoint(eventName, payload) {
-    if (!config.endpoint || !navigator.sendBeacon) return;
+    if (!config.endpoint) return;
     const body = JSON.stringify({ event: eventName, payload });
-    navigator.sendBeacon(config.endpoint, new Blob([body], { type: "application/json" }));
+    let sent = false;
+
+    if (isLocalEndpoint()) {
+      sendWithFetch(body);
+      return;
+    }
+
+    if (navigator.sendBeacon) {
+      try {
+        sent = navigator.sendBeacon(config.endpoint, new Blob([body], { type: "application/json" }));
+      } catch (error) {
+        logEndpointError("beacon", error);
+      }
+    }
+
+    if (!sent) sendWithFetch(body);
   }
 
   function sendToVendors(eventName, payload) {
@@ -162,14 +299,30 @@
     if (window._czc) window._czc.push(["_trackEvent", payload.tool || payload.page, eventName]);
   }
 
+  function getActiveFilterPresetFromDom() {
+    return document.querySelector(".filter-preset.active[data-preset]")?.dataset.preset || "";
+  }
+
+  function enrichFinalPayload(eventName, payload) {
+    if (eventName === "download_clicked" && payload.tool === "filter" && !payload.preset) {
+      const preset = getActiveFilterPresetFromDom();
+      if (preset) payload.preset = preset;
+    }
+    return payload;
+  }
+
   window.trackEvent = function trackEvent(eventName, details = {}) {
-    const payload = {
+    const sessionId = getSessionId();
+    const payload = enrichFinalPayload(eventName, {
       app: config.app,
       page: getPageName(),
       path: location.pathname,
       ts: Date.now(),
-      ...sanitizeDetails(details)
-    };
+      ...sanitizeDetails(details),
+      session_id: sessionId,
+      step_index: getNextStepIndex(sessionId),
+      flow_id: getFlowId(eventName)
+    });
 
     if (config.debug) console.info("[trackEvent]", eventName, payload);
     if (!config.enabled) return;
@@ -194,6 +347,11 @@
   window.getQualityBucket = bucketQuality;
   window.getDimensionBucket = bucketDimensions;
   window.getBatchCountBucket = bucketBatchCount;
+  window.getAnalyticsSessionId = getSessionId;
+  window.startAnalyticsFlow = startFlow;
+  window.getCurrentAnalyticsFlow = () => currentFlowId || readStoredFlowId();
+  window.getAnalyticsFlowId = window.getCurrentAnalyticsFlow;
+  window.clearAnalyticsFlow = () => writeStoredFlowId("");
 
   window.configureTracking = function configureTracking(options = {}) {
     Object.assign(config, options);

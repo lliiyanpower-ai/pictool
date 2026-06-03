@@ -161,7 +161,13 @@
         s.parentNode.insertBefore(hm, s);
       })();
     </script>
-    <script src="analytics.js"></script>
-    <script src="home.js"></script>
+    <script src="analytics.js?v=20260602-presets"></script>
+    <script>
+      configureTracking({
+        enabled: true,
+        debug: false
+      });
+    </script>
+    <script src="home.js?v=20260602-presets"></script>
   </body>
 </html>
